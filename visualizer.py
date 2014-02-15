@@ -1,14 +1,15 @@
-import pygame
+import pygame.display, pygame.draw, pygame.gfxdraw, pygame
 import random
 import time
 import sys
 
-fourier_resolution = 5
+fourier_resolution = 10
 
 #list of values 0.0 to 1.0
 def make_random_noise():
-	return [ random.random() *(fourier_resolution-i)/fourier_resolution 
+	return [random.random() *(fourier_resolution-i)/fourier_resolution 
 			for i in range(fourier_resolution)]
+
 
 class Visualizer:
 	def __init__(self,
@@ -42,6 +43,7 @@ class Visualizer:
 
 	def render(self, surface, percentcomp):
 		pass
+
 
 class BarVisualizer(Visualizer):
 	def __init__(self,
@@ -91,13 +93,14 @@ class BarVisualizer(Visualizer):
 
 class PolygonVisualizer(Visualizer):
 	def __init__(self,
+			smoothing_factor=1,
 			color=pygame.Color(32, 32, 32, 255),
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5):
 		
 		Visualizer.__init__(self,
-			1, (lambda self, f, elapsed: f),
+			smoothing_factor, (lambda self, f, elapsed: f),
 			color, bkgColor, padding_external, padding_internal
 			)
 
@@ -131,6 +134,7 @@ class PolygonVisualizer(Visualizer):
 			)
 		)
 
+
 class ThresholdPolygonVisualizer(PolygonVisualizer):
 	def __init__(self,
 			trigger_sensitivity=1,
@@ -163,17 +167,19 @@ class ThresholdPolygonVisualizer(PolygonVisualizer):
 		Visualizer.render_to_screen(self, surface, fourier, percentcomp, elapsed)
 		self.previous_fourier = fourier
 
+
 class BulbVisualizer(PolygonVisualizer):
 	def __init__(self,
+			smoothing_factor=1,
 			color=pygame.Color(32, 32, 32, 255),
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5):
-		PolygonVisualizer.__init__(self,
+		PolygonVisualizer.__init__(self, smoothing_factor,
 						color,bkgColor,
 						padding_external,padding_internal) 
-		self.hscale = 15.0
-		self.fatness_factor = 1.2
+		self.hscale = 20.0
+		self.fatness_factor = 1.4
 
 	def calc_norm(self, relativex):
 		#print(relativex, (relativex)**2 /2)
@@ -197,6 +203,10 @@ class BulbVisualizer(PolygonVisualizer):
 			self.make_norm(heights, int(positionscale*(x+1)), self.display_fourier[x])
 
 		heights = [ max(int(height*surface.get_height()/2),2) for height in heights]
+
+		self.do_render(surface, operatingdim, heights, percentcomp)
+
+	def do_render(self, surface, operatingdim, heights, percentcomp):
 
 		surface.fill(self.bkgColor)
 
@@ -223,19 +233,181 @@ class BulbVisualizer(PolygonVisualizer):
 		)
 
 
-# class ThresholdBulbVisualizer(ThresholdPolygonVisualizer):
+class BulbVisualizerAA(BulbVisualizer):
+
+	def __init__(self,
+			color=pygame.Color(32, 32, 32, 255),
+			bkgColor=pygame.Color(16, 16, 16, 1),
+			padding_external=50,
+			padding_internal=5, **kwargs):
+		BulbVisualizer.__init__(self, 2, color,bkgColor,padding_external,padding_internal)
+		self.wireframe=False
+
+	def generate_verts(self, heights, line, width, flipped=False):
+		verts = [(width-self.padding_external, line),
+				(self.padding_external, line)]		
+
+		verts = verts + [
+			(	self.padding_external+h,
+				line - (heights[h] if not flipped else -heights[h]) )
+			for h in range(len(heights))
+		]
+
+		return verts
+
+	def do_render(self, surface, operatingdim, heights, percentcomp):
+
+		surface.fill(self.bkgColor)
+
+		verts = self.generate_verts(heights, surface.get_height()/2, surface.get_width())
+
+		if( not self.wireframe):
+			pygame.gfxdraw.filled_polygon(
+				surface,
+				verts,
+				self.color)
+		return verts
+
+		pygame.gfxdraw.aapolygon(
+			surface,
+			verts,
+			self.color)
+
+		pygame.draw.rect(
+			surface,
+			self.color,
+			pygame.Rect(
+				self.padding_external,
+				surface.get_height()/2 + self.padding_internal,
+				operatingdim[0] * percentcomp,
+				2
+			)
+		)
+
+
+class BulbVisualizerAAWireframe(BulbVisualizerAA):
+	def __init__(self,
+			color=pygame.Color(32, 32, 32, 255),
+			bkgColor=pygame.Color(16, 16, 16, 1),
+			padding_external=50,
+			padding_internal=5, **kwargs):
+		BulbVisualizer.__init__(self,color,bkgColor,padding_external,padding_internal)
+		self.wireframe=True
+
+
+class VeryTrendyVisualizer(BulbVisualizerAA):
+	def __init__(self, song_title, artist, display_art, display_font_big, display_font_small, song_length_seconds):
+		BulbVisualizerAA.__init__(
+			self,
+			pygame.Color(255,255,255,50),
+			pygame.Color(255,255,255,50),
+			0, 3)
+
+		self.decay_factor = 20
+		self.smoothing_factor_fast = 10
+
+		self.song_title = song_title
+		self.artist = artist
+		self.song_length = song_length_seconds
+
+
+		#self.original_art = album_art
+
+		dest_dim = pygame.display.get_surface().get_size();
+		self.line_height = int(dest_dim[1]*0.63)
+
+		if( display_art.get_width()*1.0/display_art.get_height()  < dest_dim[0]*1.0/dest_dim[1]):
+			self.scaled_art = pygame.transform.smoothscale(
+				display_art,
+				(dest_dim[0], int(1.0*dest_dim[0]/display_art.get_width() * display_art.get_height()))
+			)
+		else:
+			self.scaled_art = pygame.transform.smoothscale(
+				display_art,
+				( int(1.0*dest_dim[1]/display_art.get_height() * display_art.get_width() ), dest_dim[1])
+			)
+
+		self.font_big = display_font_big
+		self.font_small = display_font_small
+
+		self.label_artist = self.font_big.render(self.artist, 1, self.color)
+		self.label_song = self.font_small.render(self.song_title, 1, self.color)
+
+	def get_timestring(self, percentcomp):
+		n = (percentcomp*self.song_length)
+		return "%d:%00d"%(int(n/60), int(n)%60)
+
+	def gradualize_display(self, elapsed):
+		out = [0]*fourier_resolution
+		for i in range(fourier_resolution):
+			if(self.display_fourier[i]>self.operating_fourier[i]):
+				out[i] = (self.display_fourier[i] +
+					(self.operating_fourier[i] - self.display_fourier[i]) *
+						elapsed * self.smoothing_factor
+				)
+			else:
+				out[i] = (self.display_fourier[i] +
+					(self.operating_fourier[i] - self.display_fourier[i]) *
+						elapsed * self.smoothing_factor_fast
+				)
+		return out
+
+	def do_render(self, surface, operatingdim, heights, percentcomp):
+		surface.blit(self.scaled_art, (0,0));
+
+		verts = self.generate_verts(heights, self.line_height, surface.get_width(), True)
+
+		pygame.gfxdraw.filled_polygon(
+			surface,
+			verts,
+			self.color)
+		"""
+		pygame.gfxdraw.aapolygon(
+			surface,
+			verts,
+			self.color)
+		"""
+		#TODO masking colors
+
+		pygame.gfxdraw.box(
+			surface,
+			pygame.Rect(
+				self.padding_external,
+				self.line_height - self.padding_internal - 3,
+				operatingdim[0] * percentcomp,
+				3
+			),
+			self.color
+		)
+
+		surface.blit(self.label_song, (18, self.line_height-self.font_small.get_height()-self.font_big.get_height()-3))
+		surface.blit(self.label_artist, (18, self.line_height-self.font_big.get_height()-8))
+
 
 
 
 if __name__ == "__main__":
 	pygame.init()
-	
-	window = pygame.display.set_mode((800,600), pygame.SRCALPHA)
+	"""
 	visualizer = [
 		BarVisualizer,
 		PolygonVisualizer,
 		ThresholdPolygonVisualizer,
-		BulbVisualizer] [int(sys.argv[1])]() if len(sys.argv)>1 else BarVisualizer()
+		BulbVisualizer,
+		BulbVisualizerAA,
+		BulbVisualizerAAWireframe
+		] [int(sys.argv[1])] () if len(sys.argv)>1 else BarVisualizer()
+	"""
+
+	window = pygame.display.set_mode((800,450))
+	visualizer = VeryTrendyVisualizer(
+			"S-SONG SENPAI",
+			"IS-LIMBICS",
+			pygame.image.load("./dunes.jpg"),
+			pygame.font.Font("./Quicksand_regular.ttf", 20),
+			pygame.font.Font("./Quicksand_light.ttf", 20),
+			10.0
+		)
 
 	running=True
 
@@ -247,7 +419,7 @@ if __name__ == "__main__":
 		visualizer.render_to_screen(window, make_random_noise(), i/end, 1.0/fps)
 		pygame.display.flip()
 
-		time.sleep(1.0/fps)
+		#time.sleep(1.0/fps)
 
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
