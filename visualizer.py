@@ -38,8 +38,17 @@ class Visualizer:
 		self.render(surface, percentcomp)
 
 	def gradualize_display(self, elapsed):
-		return [self.display_fourier[i] + (self.operating_fourier[i] - self.display_fourier[i] ) * elapsed * self.smoothing_factor
-								for i in range(fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
+		return [
+			self.moving_towards(
+				self.display_fourier[i],
+				self.operating_fourier[i],
+				 (self.operating_fourier[i] - self.display_fourier[i] ) * elapsed * self.smoothing_factor)
+				for i in range(fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
+	
+	def moving_towards(self, start, destination, delta):
+			return (detination if
+				(abs(delta)<abs(destination-start) and (delta>0) != (destination-start>0))
+				else start+delta)
 
 	def render(self, surface, percentcomp):
 		pass
@@ -300,7 +309,7 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 		BulbVisualizerAA.__init__(
 			self,
 			pygame.Color(255,255,255,50),
-			pygame.Color(255,255,255,50),
+			pygame.Color(255,255,255,20),
 			0, 3)
 
 		self.decay_factor = 20
@@ -332,23 +341,31 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 
 		self.label_artist = self.font_big.render(self.artist, 1, self.color)
 		self.label_song = self.font_small.render(self.song_title, 1, self.color)
+		self.label_time = self.font_small.render("0:00", 1, self.color)
+		self.label_alltime = self.font_small.render("/"+self.get_timestring(1), 1, self.color)
+
+		self.old_timestring = "0:00"
 
 	def get_timestring(self, percentcomp):
 		n = (percentcomp*self.song_length)
-		return "%d:%00d"%(int(n/60), int(n)%60)
+		return "%d:%02d"%(int(n/60), int(n)%60)
 
 	def gradualize_display(self, elapsed):
 		out = [0]*fourier_resolution
 		for i in range(fourier_resolution):
 			if(self.display_fourier[i]>self.operating_fourier[i]):
-				out[i] = (self.display_fourier[i] +
-					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor
+				out[i] = self.moving_towards(
+									self.display_fourier[i],
+									self.operating_fourier[i],
+									(self.operating_fourier[i] - self.display_fourier[i]) *
+										elapsed * self.smoothing_factor
 				)
 			else:
-				out[i] = (self.display_fourier[i] +
-					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor_fast
+				out[i] = self.moving_towards(
+									self.display_fourier[i],
+									self.operating_fourier[i],
+									(self.operating_fourier[i] - self.display_fourier[i]) *
+										elapsed * self.smoothing_factor_fast
 				)
 		return out
 
@@ -383,6 +400,13 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 		surface.blit(self.label_song, (18, self.line_height-self.font_small.get_height()-self.font_big.get_height()-3))
 		surface.blit(self.label_artist, (18, self.line_height-self.font_big.get_height()-8))
 
+		if(self.old_timestring != self.get_timestring(percentcomp)):
+			self.label_time = self.font_small.render(self.get_timestring(percentcomp), 1, self.bkgColor)
+
+		surface.blit(self.label_time,
+			(surface.get_width()-109, self.line_height-self.font_big.get_height()-8))
+		surface.blit(self.label_alltime,
+			(surface.get_width()-65, self.line_height-self.font_big.get_height()-8))
 
 
 
@@ -398,6 +422,10 @@ if __name__ == "__main__":
 		BulbVisualizerAAWireframe
 		] [int(sys.argv[1])] () if len(sys.argv)>1 else BarVisualizer()
 	"""
+	running=True
+
+	fps = 60
+	length = 10.0
 
 	window = pygame.display.set_mode((800,450))
 	visualizer = VeryTrendyVisualizer(
@@ -406,20 +434,19 @@ if __name__ == "__main__":
 			pygame.image.load("./dunes.jpg"),
 			pygame.font.Font("./Quicksand_regular.ttf", 20),
 			pygame.font.Font("./Quicksand_light.ttf", 20),
-			10.0
+			length
 		)
 
-	running=True
-
-	fps = 60
-	end = fps*10.0
-
-	for i in range(int(end)+1):
-
-		visualizer.render_to_screen(window, make_random_noise(), i/end, 1.0/fps)
+	elapsed = 1.0/fps
+	sumelapsed = 0.0
+	lastupdate = time.time()
+	while(sumelapsed <= length+2):
+		if(sumelapsed < length):
+			signal = make_random_noise()
+		else:
+			signal = [0.0]*fourier_resolution
+		visualizer.render_to_screen(window, signal, min(1, sumelapsed/length), elapsed)
 		pygame.display.flip()
-
-		#time.sleep(1.0/fps)
 
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
@@ -428,6 +455,14 @@ if __name__ == "__main__":
 
 		if (not running):
 			break
-	time.sleep(1);
+
+		elapsed = time.time()-lastupdate
+		#maintain fps limit on high end machines
+		while(elapsed<1.0/fps):
+			time.sleep(1.0/fps -elapsed)
+			elapsed = time.time()-lastupdate
+
+		lastupdate = time.time()
+		sumelapsed += elapsed
 
 	pygame.quit()
