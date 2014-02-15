@@ -1,19 +1,46 @@
 import pygame
 import random
 import time
+import sys
 
-fourier_resolution = 100
+fourier_resolution = 50
 
 #list of values 0.0 to 1.0
 def make_random_noise():
-	return [ random.random()*(fourier_resolution-i)/fourier_resolution for i in range(fourier_resolution)]
+	return [ random.random() *(fourier_resolution-i)/fourier_resolution 
+			for i in range(fourier_resolution)]
 
 class Visualizer:
-	def __init__():
-		pass
+	def __init__(self,
+			rendering_function,
+			smoothing_factor=0,
+			input_output_relationship=lambda self, i, elapsed: i,
+
+			color=pygame.Color(32, 32, 32, 255),
+			bkgColor=pygame.Color(16, 16, 16, 1),
+			padding_external=50,
+			padding_internal=5,
+			):
+		self.color = color
+		self.bkgColor = bkgColor
+		self.padding_external = padding_external
+		self.padding_internal = padding_internal
+		self.smoothing_factor = smoothing_factor
+
+		self.rendering_function = rendering_function
+		self.input_output_relationship = input_output_relationship
+
+		self.display_fourier = [0]*fourier_resolution
+		self.operating_fourier = [0]*fourier_resolution
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
-		pass
+		self.operating_fourier = self.input_output_relationship( self, fourier, elapsed)
+		self.display_fourier = self.gradualize_display(elapsed)
+		self.rendering_function(self, surface, percentcomp)
+
+	def gradualize_display(self, elapsed):
+		return [self.display_fourier[i] + (self.operating_fourier[i] - self.display_fourier[i] ) * elapsed * self.smoothing_factor
+								for i in range(fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
 
 class BarVisualizer(Visualizer):
 	def __init__(self,
@@ -21,25 +48,19 @@ class BarVisualizer(Visualizer):
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5):
-		self.color = color
-		self.bkgColor = bkgColor
-		self.padding_external = padding_external
-		self.padding_internal = padding_internal
+		Visualizer.__init__(self,
+			BarVisualizer.render,
+			1, lambda self, f, elapsed: f,
+			color, bkgColor, padding_external, padding_internal
+			)
 
-		self.previous_fourier = [0]*fourier_resolution;
-
-	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+	def render(self, surface, percentcomp):
 		operatingdim = (surface.get_width()-self.padding_external*2,
 							surface.get_height()-self.padding_external*2)
 		rectwidth = (
 			(	operatingdim[0] -
 				self.padding_internal * (fourier_resolution-1)
 			) / fourier_resolution)
-
-		fourier = [
-			self.previous_fourier[i] + (fourier[i]-self.previous_fourier[i])*1.4*elapsed
-			for i in range(fourier_resolution)]
-		self.previous_fourier = fourier
 
 		surface.fill(self.bkgColor)
 
@@ -49,11 +70,10 @@ class BarVisualizer(Visualizer):
 				self.color,
 				pygame.Rect(
 					self.padding_external+(rectwidth + self.padding_internal)*x,
-					surface.get_height()/2-operatingdim[1]/2 * fourier[x],
+					surface.get_height()/2-operatingdim[1]/2 * self.display_fourier[x],
 					rectwidth,
-					operatingdim[1]/2 * fourier[x]
+					operatingdim[1]/2 * self.display_fourier[x]
 				))
-
 		pygame.draw.rect(
 			surface,
 			self.color,
@@ -61,7 +81,7 @@ class BarVisualizer(Visualizer):
 				self.padding_external,
 				surface.get_height()/2 + self.padding_internal,
 				operatingdim[0] * percentcomp,
-				10
+				2
 			)
 		)
 
@@ -73,21 +93,16 @@ class PolygonVisualizer(Visualizer):
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5):
-		self.color = color
-		self.bkgColor = bkgColor
-		self.padding_external = padding_external
-		self.padding_internal = padding_internal
+		
+		Visualizer.__init__(self,
+			PolygonVisualizer.render,
+			1, (lambda self, f, elapsed: f),
+			color, bkgColor, padding_external, padding_internal
+			)
 
-		self.previous_fourier = [0]*fourier_resolution;
-
-	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+	def render(self, surface, percentcomp):
 		operatingdim = (surface.get_width()-self.padding_external*2,
 							surface.get_height()-self.padding_external*2)
-
-		fourier = [
-			self.previous_fourier[i] + (fourier[i]-self.previous_fourier[i])*1.4*elapsed
-			for i in range(fourier_resolution)]
-		self.previous_fourier = fourier
 
 		surface.fill(self.bkgColor)
 
@@ -95,15 +110,13 @@ class PolygonVisualizer(Visualizer):
 			(self.padding_external + operatingdim[0], surface.get_height()/2),
 			(self.padding_external, surface.get_height()/2)
 		]
-		w = operatingdim[0]/(fourier_resolution+2.0)
+		w = operatingdim[0]/(fourier_resolution*1.0)
 		for x in range(fourier_resolution):
 			poly.append( (
 				self.padding_external+ w*x + w/2,
-				surface.get_height()/2 - operatingdim[1]/2 * fourier[x]
+				surface.get_height()/2 - operatingdim[1]/2 * self.display_fourier[x]
 				)
 			)
-			
-
 		pygame.draw.polygon(surface, self.color, poly)		
 
 		pygame.draw.rect(
@@ -117,70 +130,51 @@ class PolygonVisualizer(Visualizer):
 			)
 		)
 
-class BulbVisualizer(Visualizer):
+class ThresholdPolygonVisualizer(PolygonVisualizer):
 	def __init__(self,
+			trigger_sensitivity=1,
+			decay_factor=0.2,
 			color=pygame.Color(32, 32, 32, 255),
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5):
-		self.color = color
-		self.bkgColor = bkgColor
-		self.padding_external = padding_external
-		self.padding_internal = padding_internal
 
-		self.previous_fourier = [0]*fourier_resolution
+		Visualizer.__init__(self,
+			ThresholdPolygonVisualizer.render, 1,
+			(	lambda self, f, elapsed:
+					[	max(
+							0,
+							f[i] * (f[i] > (self.trigger_sensitivity * self.previous_fourier[i])),
+							self.operating_fourier[i] - elapsed * self.decay_factor
+						)
+					for i in range(fourier_resolution)]
+			),
+			color, bkgColor, padding_external, padding_internal
+			)
 
-		self.bulbs = [0.0]*fourier_resolution
-		self.display_bulbs = [0.0]*fourier_resolution
+		self.smoothing_factor = 5
+
+		self.trigger_sensitivity = 50
+		self.decay_factor = decay_factor
+		self.previous_fourier = [1]*fourier_resolution
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
-		operatingdim = (surface.get_width()-self.padding_external*2,
-							surface.get_height()-self.padding_external*2)
-
-
-		for i in range(fourier_resolution):
-			self.bulbs[i] = max(self.bulbs[i]-elapsed, 0)
-			self.bulbs[i] = max( self.bulbs[i], fourier[i]*(fourier[i] > 10 * self. previous_fourier[i]) )
+		Visualizer.render_to_screen(self, surface, fourier, percentcomp, elapsed)
 		self.previous_fourier = fourier
 
-		for i in range(fourier_resolution):
-			self.display_bulbs[i] += (self.bulbs[i]-self.display_bulbs[i]) * (2*elapsed)
+	def render(self, surface, percentcomp):
+		#print(self.display_fourier)
+		PolygonVisualizer.render(self,surface, percentcomp)		
 
-		surface.fill(self.bkgColor)
-
-		poly = [
-			(self.padding_external + operatingdim[0], surface.get_height()/2),
-			(self.padding_external, surface.get_height()/2)
-		]
-		w = operatingdim[0]/(fourier_resolution+2.0)
-		for x in range(fourier_resolution):
-			poly.append( (
-				self.padding_external+ w*x + w/2,
-				surface.get_height()/2 - operatingdim[1]/2 * self.display_bulbs[x]
-				)
-			)
-			
-
-		pygame.draw.polygon(surface, self.color, poly)		
-
-		pygame.draw.rect(
-			surface,
-			self.color,
-			pygame.Rect(
-				self.padding_external,
-				surface.get_height()/2 + self.padding_internal,
-				operatingdim[0] * percentcomp,
-				2
-			)
-		)
-		
-	
 
 if __name__ == "__main__":
 	pygame.init()
 	
 	window = pygame.display.set_mode((800,600), pygame.SRCALPHA)
-	visualizer = BulbVisualizer()
+	visualizer = [
+		BarVisualizer,
+		PolygonVisualizer,
+		ThresholdPolygonVisualizer] [int(sys.argv[1])]() if len(sys.argv)>1 else BarVisualizer()
 
 	running=True
 
@@ -194,8 +188,7 @@ if __name__ == "__main__":
 
 		time.sleep(1.0/fps)
 
-		events = pygame.event.get()
-		for event in events:
+		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
 				running=False
