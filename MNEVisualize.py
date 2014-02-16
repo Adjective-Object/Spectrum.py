@@ -129,8 +129,8 @@ if __name__ == "__main__":
     length = 20.0
 
     #visualizerSet = get_visualizer_from_args()
-    #visualizerSet = visualizer.make_minimalist_eq(length)
-    visualizerSet = visualizer.make_trendy_visualizer(0)
+    visualizerSet = visualizer.make_minimalist_eq(length)
+    #visualizerSet = visualizer.make_trendy_visualizer(0)
     visualizerSet.initial_bake()
     data = mneplayer.get_data()
 
@@ -142,6 +142,7 @@ if __name__ == "__main__":
     lastupdate = initialtime
     while(playerthread.live()):
         signal = spectrum.generate_spectrum(mneplayer.get_data())
+        signal = spectrum.remove_negative(signal)
         signal = spectrum.into_bins(signal, 10)
         visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
 
