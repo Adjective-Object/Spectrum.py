@@ -9,6 +9,9 @@ TOP = 0
 BOTTOM = 12
 FIRST_THIRD= 4
 SECOND_THIRD = 8
+FIRST_QUARTER= 3
+SECOND_QUARTER = 9
+
 
 def ARBITRARY_FRACTION(x):
 	return 12*x
@@ -96,7 +99,7 @@ class HlineVisualizer(Visualizer):
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
-		print(self.baked_location)
+		#print(self.baked_location)
 		pygame.gfxdraw.box(
 			surface,
 			pygame.Rect(
@@ -185,22 +188,11 @@ class BarEqualizer(Equalizer):
 				self.parent.colorMain,
 				pygame.Rect(
 					self.parent.padding_external+(rectwidth + self.parent.padding_internal)*x,
-					surface.get_height()/2-operatingdim[1]/2 * self.display_fourier[x],
+					surface.get_height()/2-self.parent.operatingdim[1]/2 * self.display_fourier[x],
 					rectwidth,
-					operatingdim[1]/2 * self.display_fourier[x]
+					self.parent.operatingdim[1]/2 * self.display_fourier[x]
 				)
 			)
-
-		pygame.draw.rect(
-			surface,
-			self.parent.colorMain,
-			pygame.Rect(
-				self.parent.padding_external,
-				surface.get_height()/2 + self.parent.padding_internal,
-				operatingdim[0] * percentcomp,
-				2
-			)
-		)
 
 
 class PolygonEqualizer(Equalizer):
@@ -349,14 +341,14 @@ class BulbEqualizerAA(BulbEqualizer):
 class VisualizerSet:
 	fourier_resolution = 10
 
-	colorMain = pygame.Color(32,32,32)
-	colorSub = pygame.Color(24,24,24)
+	colorMain = pygame.Color(64,64,64)
+	colorSub = pygame.Color(32,32,32)
 	colorBkg = pygame.Color(16,16,16)
 
 	padding_external = 50
 	padding_internal = 5
 
-	resolution = (800,450)
+	resolution = (900,450)
 
 	font_big = None
 	font_small = None
@@ -391,4 +383,13 @@ def make_trendy_visualizer(totaltime):
 	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
 	v.font_small = pygame.font.Font("./Quicksand_light.ttf",20)
 
+	return v
+
+def make_minimalist_eq(totaltime):
+	v = VisualizerSet(
+				TimeVisualizer(RIGHT, MIDDLE_THIRD, totaltime),
+				BarEqualizer()
+				)
+	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
+	v.font_small = pygame.font.Font("./Quicksand_regular.ttf",20)
 	return v
