@@ -295,18 +295,16 @@ class PlayerThread(threading.Thread):
 		while(self.live and (self.player.get_data() != '')):
 			self.player.next_frame()
 		self.live = False
-	def live(self):
+	def isLive(self):
 		return self.live
 	def kill(self):
 		self.live = False
 
 if __name__ == "__main__":
 	pygame.init()
-	
-	visualizerSet, postargs = get_visualizer_from_args()
-	
-	length = 0
 
+	visualizerSet, postargs = get_visualizer_from_args()
+	length = 0
 	if (postargs[0].split(".")[-1].lower() == "mp3"):
 		mneplayer = player.Player( postargs[0], player.Player.TYPE_MP3)
 		audio = mutagen.mp3.MP3(postargs[0])
@@ -314,6 +312,7 @@ if __name__ == "__main__":
 	else:
 		mneplayer = player.Player( postargs[0], player.Player.TYPE_WAV)
 		length = wav_filelength(postargs[0])
+
 	playerthread = PlayerThread(mneplayer)    
 	playerthread.start()
 
@@ -338,7 +337,7 @@ if __name__ == "__main__":
 	initialtime = time.time()
 	lastupdate = initialtime
 
-	while(playerthread.live()):
+	while(playerthread.isLive()):
 		signal = spectrum.generate_spectrum(mneplayer.get_data())
 		signal = spectrum.remove_negative(signal)
 		signal = spectrum.into_bins(signal, 10)
