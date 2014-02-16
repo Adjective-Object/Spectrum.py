@@ -168,7 +168,7 @@ class Equalizer(Visualizer):
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor * 5
+						elapsed * self.smoothing_factor * 10
 			) ) for i in range(self.parent.fourier_resolution)]
 
 		if self.smoothing_factor != -1 else self.operating_fourier)
@@ -366,9 +366,13 @@ class VisualizerSet:
 	font_small = None
 
 	def __init__(self, *vargs):
-		self.visualizers = vargs
+		self.visualizers = []+vargs
 		for v in self.visualizers:
 			v.parent = self
+
+	def add(self, v):
+		v.parent = self
+		self.visualizers.add(v)
 
 	def initial_bake(self):
 		self.operatingdim = (self.resolution[0]-self.padding_external*2, self.resolution[1]-self.padding_external*2)

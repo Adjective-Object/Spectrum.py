@@ -12,14 +12,23 @@ def make_random_noise(resolution):
     return [random.random() *(resolution-i)/resolution 
             for i in range(resolution)]
 
+def parseColor(string):
+    s = string.remove("(").remove(")").remove(" ").split(",")
+    if len(s) == 3:
+        return pygame.Color(int(s[0]), int(s[1]), int(s[2]))
+    elif len(s) == 4:
+        return pygame.Color(int(s[0]), int(s[1]), int(s[2]), int(s[3]))
+    else:
+        print "Improperly specified color argument. Defaulting to Black"
+        return pygame.Color(0,0,0)
 
 def printHelpString():
     print "Usage is visualize [OPTION...] SONGIN FILEOUT"
-    print " -q, --fresolution=f           sets the resolution of the fourier"
+    print " -f, --fresolution=f           sets the resolution of the fourier"
     print "                                    transform. Defaults to 10."
     print " -r, --resolution=AxB          set the output resoltuion AxB,"
     print "                                    Defaults to 1920x1080"
-    print " -n, --preview=false,f         display or do not display a preview"
+    print " -p, --preview=false,f         display or do not display a preview"
     print "                                    while rendering. defaults to true"
     print " -x, --expadding[=###]         specify the external padding of the"
     print "                                    visualizer. Position is judged "
@@ -73,25 +82,42 @@ def printHelpString():
 
 def get_visualizer_from_args():
     try:
-        interps={
-            "-i":lambda args: BackgroundImageVisualizer(args[1])
-        }
-        visualizers=[]
         args, postargs = getopt.getopt(
             sys.argv[1:],
-            "f:r:n:p:x:n:m:s:b:l:t:q:i",
+            "f:r:p:x:m:n:s:b:",
             ["fresolution=", "resolution=", "preview=", "expandding=", "inpadding=",
-                "colormain=", "colorsub=", "colorback=", "hbar=", "timestamp", "equalizer", "image"
+                "colormain=", "colorsub=", "colorback=", "elements="
             ]
         )
+        #look for help
         for arg in args:
             if arg[0]=="-h":
                 printHelpString()
                 sys.exit(0)
+        newset = VisualizerSet()
+        #look for env stuff
+        print args
         for arg in args:
             if arg[0] in interp.keys:
-                vis = interps[arg[0]](args)
-                visualizers.append(vis if vis else [])
+                if arg[0] == "f" or arg[0] == "fresolution=":
+                    newset.fourier_resolution = int(arg[1])
+                elif arg[0] == "r" or arg[0] == "resolution=":
+                    split = arg[1].remove(")").remove("(").remove(" ").split("x")
+                    newset.resolution = (int(split[0]), int(split[1]))
+                elif arg[0] == "n" or arg[0] == "inpadding=":
+                    newset.padding_internal = float(arg[1])
+                elif arg[0] == "p" or arg[0] == "preview":
+                    print("preview option not implemented")
+                elif arg[0] == "x" or arg[0] == "expadding":
+                    newset.padding_external = float(arg[1])
+                elif arg[0] == "m" or arg[0] == "colormain":
+                    newset.colorMain = parseColor(arg[1])
+                elif arg[0] == "s" or arg[0] == "colorsub":
+                    newset.colorSub = parseColor(arg[1])
+                elif arg[0] == "b" or arg[0] == "colorback":
+                    newset.colorBkg = parseColor(arg[1])
+                elif (arg[0] == "e" or arg[0]=="elements=")
+                    pass
             else:
                 print("Unknown Arg %s"%(arg[0]))
         return interps
@@ -129,8 +155,8 @@ if __name__ == "__main__":
     length = 20.0
 
     #visualizerSet = get_visualizer_from_args()
-    visualizerSet = visualizer.make_minimalist_eq(length)
-    #visualizerSet = visualizer.make_trendy_visualizer(0)
+    #visualizerSet = visualizer.make_minimalist_eq(length)
+    visualizerSet = visualizer.make_trendy_visualizer(0)
     visualizerSet.initial_bake()
     data = mneplayer.get_data()
 
