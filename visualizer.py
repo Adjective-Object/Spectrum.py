@@ -18,9 +18,6 @@ def ARBITRARY_FRACTION(x):
 
 RESOLUTION = (800, 450)
 
-def init():
-	pygame.init()
-
 #list of values 0.0 to 1.0
 def make_random_noise(resolution):
 	return [random.random() *(resolution-i)/resolution 
@@ -464,35 +461,21 @@ def get_visualizers_from_options():
 		sys.exit(0)
 
 if __name__ == "__main__":
-	init()	
+	pygame.init()
 	
 	finish_time=5
 	fps = 60
-	length = 10.0
+	length = 20.0
 
 	visualizerSet = make_trendy_visualizer(length)
 	visualizerSet.initial_bake()
+
+	window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
 	
-
-	"""
-	visualizers = [VeryTrendyVisualizer(
-		"SONG TITLE",
-		"ARTIST NAME",
-		pygame.image.load("dunes.jpg"),
-		pygame.font.Font("./Quicksand_regular.ttf",20),
-		pygame.font.Font("./Quicksand_light.ttf",20),
-		finish_time
-		)]
-	"""
-
-	window = pygame.display.set_mode((800,450))
-	
-
-	running=True
-
 	elapsed = 1.0/fps
 	sumelapsed = 0.0
-	lastupdate = time.time()
+	initialtime = time.time()
+	lastupdate = initialtime
 	while(sumelapsed <= length+finish_time):
 		if(sumelapsed < length):
 			signal = make_random_noise(visualizerSet.fourier_resolution)
@@ -503,21 +486,18 @@ if __name__ == "__main__":
 
 		pygame.display.flip()
 
+		#preemptive close
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
-				running=False
-
-		if (not running):
-			break
+				sys.exit(0)
 
 		elapsed = time.time()-lastupdate
+
 		#maintain fps limit on high end machines
 		while(elapsed<1.0/fps):
 			time.sleep(1.0/fps -elapsed)
 			elapsed = time.time()-lastupdate
 
 		lastupdate = time.time()
-		sumelapsed += elapsed
-
-	pygame.quit()
+		sumelapsed = lastupdate-initialtime
