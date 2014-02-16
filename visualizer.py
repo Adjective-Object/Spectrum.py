@@ -1,8 +1,5 @@
 import pygame.display, pygame.draw, pygame.gfxdraw, pygame
-import random
-import time
 import sys
-import getopt
 
 #global vars
 LEFT = 0
@@ -17,12 +14,6 @@ def ARBITRARY_FRACTION(x):
 	return 12*x
 
 RESOLUTION = (800, 450)
-
-#list of values 0.0 to 1.0
-def make_random_noise(resolution):
-	return [random.random() *(resolution-i)/resolution 
-			for i in range(resolution)]
-
 
 def moving_towards(start, destination, delta):
 			return (destination if
