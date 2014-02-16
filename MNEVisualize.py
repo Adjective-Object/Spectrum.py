@@ -165,10 +165,11 @@ def add_elements(nset, declarations):
 			s.remove('')
 
 		if(s[0].lower() == "hbar"):
-			check_num_args("hbar",s,2)
+			check_num_args("hbar",s,3)
 			nset.add(visualizer.HlineVisualizer(
 				get_location(s[1], "hbar", "<ylocation>"),
-				get_int(s[2], "hbar", "<yoffset>"))
+				get_int(s[2], "hbar", "<yoffset>"),
+				get_int(s[3], "hbar", "<thickness>"))
 			)
 		elif(s[0].lower() == "bkgimg"): #TODO graceful image load fail
 			check_num_args("hbar",s,2)
@@ -182,15 +183,17 @@ def add_elements(nset, declarations):
 			nset.add(visualizer.TimeVisualizer(
 				get_location(s[1],"time","<xlocation>"),
 				get_location(s[2],"time","<ylocation>"),
-				get_int(s[2],"time","<yoffset>"),
-				get_int(s[2],"time","<yoffset>"))
+				get_int(s[3],"time","<xoffset>"),
+				get_int(s[4],"time","<yoffset>"))
 			)
 		elif(s[0].lower() == "songinf"):
-			check_num_args("songinf",s,4)
+			check_num_args("songinf",s,6)
 			nset.add(visualizer.TextVisualizer(
-				s[3], s[4],
+				s[3].replace("_"," "), s[4].replace("_"," "),
 				get_location(s[1],"songinf","<xlocation>"),
-				get_location(s[2],"songinf","<ylocation>"))
+				get_location(s[2],"songinf","<ylocation>"),
+				get_int(s[5],"songinf","<xoffset>"),
+				get_int(s[6],"songinf","<yoffset>"))
 			)
 		elif(s[0].lower() == "bareq"):
 			check_num_args("bareq",s,3)
@@ -201,10 +204,13 @@ def add_elements(nset, declarations):
 			)
 		elif(s[0].lower() == "polyeq"):
 			check_num_args("polyeq",s,3)
+			if (len(s) == 4):
+				s.append("f")
 			nset.add(visualizer.PolygonEqualizer(
 				get_location(s[1], "polyeq", "<ylocation>"),
 				get_int(s[2], "polyeq","<yoffset>"),
-				get_boolean(s[3], "polyeq", "<direction>"))
+				get_boolean(s[3], "polyeq", "<direction>"),
+				get_boolean(s[4], "polyeq", "<wireframe>"))
 			)
 		elif(s[0].lower() == "bulbeq"):
 			check_num_args("bulbeq",s,3)
@@ -242,9 +248,9 @@ def get_visualizer_from_args():
 		newset = visualizer.VisualizerSet()
 		args, postargs = getopt.getopt(
 			sys.argv[1:],
-			"q:r:f:x:m:n:s:b:e:",
+			"q:r:f:x:m:n:s:b:e:o",
 			["fresolution=", "resolution=", "file=", "expandding=", "inpadding=",
-				"colormain=", "colorsub=", "colorback=", "elements="
+				"colormain=", "colorsub=", "colorback=", "elements=", "font="
 			]
 		)
 		#look for help
@@ -274,6 +280,11 @@ def get_visualizer_from_args():
 			elif arg[0] == "-e" or arg[0]=="--elements":
 				s = arg[1].split(",")
 				add_elements(newset, s)
+			elif arg[0] == "-o" or arg[0] == "--font":
+				s = arg[1].split(",")
+				newset.font_big = pygame.font.Font(
+						s[0], get_int(s[1], "-o/--font", "param 2"))
+				newset.font_small = newset.font_big
 			else:
 				print("Unknown Arg %s"%(arg[0]))
 		if(len(newset.visualizers)==0):

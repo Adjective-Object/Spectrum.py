@@ -96,10 +96,11 @@ class TextVisualizer(Visualizer):
 
 class HlineVisualizer(Visualizer):
 
-	def __init__(self, location_y, offsety):
+	def __init__(self, location_y, offsety, thickness=3):
 		Visualizer.__init__(self)
 		self.offsety = offsety
 		self.location = (LEFT, location_y)
+		self.thickness = thickness
 
 	def initial_bake(self):
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
@@ -112,7 +113,7 @@ class HlineVisualizer(Visualizer):
 				self.baked_location[0],
 				self.baked_location[1] + self.offsety,
 				self.parent.operatingdim[0] * percentcomp,
-				3
+				self.thickness
 			),
 			self.parent.colorMain
 		)
@@ -144,9 +145,9 @@ class TimeVisualizer(Visualizer):
 			self.label_time = self.parent.font_small.render(self.get_timestring(percentcomp), 1, self.parent.colorSub)
 
 		surface.blit(self.label_time,
-			(self.baked_location[0]-109, self.baked_location[1]-self.parent.font_big.get_height()-8))
+			(self.baked_location[0], self.baked_location[1]-self.parent.font_big.get_height()-8))
 		surface.blit(self.label_alltime,
-			(self.baked_location[0]-65, self.baked_location[1]-self.parent.font_big.get_height()-8))
+				(self.baked_location[0]+self.parent.font_small.size(self.get_timestring(percentcomp))[0], self.baked_location[1]-self.parent.font_big.get_height()-8))
 
 
 
@@ -211,26 +212,32 @@ class BarEqualizer(Equalizer):
 		for x in range(self.parent.fourier_resolution):
 			h = self.parent.operatingdim[1]/2 * self.display_fourier[x]
 			expand = -h if self.direction else h
-			pygame.draw.rect(
+			pygame.gfxdraw.box(
 				surface,
-				self.parent.colorMain,
 				pygame.Rect(
 					self.baked_location[0]+(rectwidth + self.parent.padding_internal)*x,
 					self.baked_location[1],
 					rectwidth,
 					expand
-				)
+				),
+				self.parent.colorMain
 			)
 
 
 class PolygonEqualizer(Equalizer):
-	def __init__(self, location_y, offset_y, direction,
+	def __init__(self, location_y, offset_y, direction, wireframe=False,
 					smoothing_factor=2,
 					input_output_relationship=lambda self, i, elapsed: i):
 		Equalizer.__init__( self, location_y, offset_y, direction, 
 							smoothing_factor, input_output_relationship)
+		self.wireframe = wireframe
+		self.offset_y = offset_y
 
-	def render(self, surface, percentcomp):
+	def initial_bake(self):
+		super(PolygonEqualizer, self).initial_bake()
+		self.baked_location = (self.baked_location[0], self.baked_location[1] + self.offset_y)
+
+	def render(self, surface):
 		operatingdim = (surface.get_width()-self.parent.padding_external*2,
 							surface.get_height()-self.parent.padding_external*2)
 
@@ -247,7 +254,9 @@ class PolygonEqualizer(Equalizer):
 				self.baked_location[1] - off*self.direction + off * (not self.direction)
 				)
 			)
-		pygame.draw.polygon(surface, self.parent.colorMain, poly)      
+		pygame.gfxdraw.aapolygon(surface, poly, self.parent.colorMain) 
+		if (not self.wireframe):
+			pygame.gfxdraw.filled_polygon(surface, poly, self.parent.colorMain) 
 
 
 class ThresholdPolygonEqualizer(PolygonEqualizer):
