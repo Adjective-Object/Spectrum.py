@@ -46,10 +46,13 @@ class BackgroundImageVisualizer(Visualizer):
 	def __init__(self, imagePATH):
 		Visualizer.__init__(self)
 		self.original_art = pygame.image.load(imagePATH)
+
+	def initial_bake(self):
 		self.scaled_art = self.recalculate_size()
 
+
 	def recalculate_size(self):
-		self.dest_dim = RESOLUTION
+		self.dest_dim = self.parent.resolution
 
 		if( self.original_art.get_width()*1.0/self.original_art.get_height()  < self.dest_dim[0]*1.0/self.dest_dim[1]):
 			self.scaled_art = pygame.transform.smoothscale(
