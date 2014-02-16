@@ -182,9 +182,10 @@ class BarEqualizer(Equalizer):
 		Equalizer.__init__(self,
 			1, lambda self, f, elapsed: f)
 		self.location_y = location_y
-		self.offsety = offsety
+		self.offsety = offset_y
 
 	def initial_bake(self):
+		Equalizer.initial_bake(self)
 		self.baked_location = self.get_baked_coords(LEFT,self.location_y)
 
 	def render(self, surface):
