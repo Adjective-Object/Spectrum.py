@@ -3,10 +3,12 @@ import pygame
 import time
 import random
 import getopt
-import player
 import sys
-import spectrum
 import threading
+
+#import player
+#import spectrum
+
 #list of values 0.0 to 1.0
 def make_random_noise(resolution):
     return [random.random() *(resolution-i)/resolution 
@@ -26,7 +28,7 @@ def parseColor(string):
 def get_boolean(s, cmd, argnum):
     if s=="true" or s=="t" or s=="1":
         return True
-    else if s=="false" or s=="f" or s=="0"
+    elif s=="false" or s=="f" or s=="0":
         return False
     print "Improperly specified boolean argument %s in command %s"%(argnum, cmd)
     sys.exit(1)
@@ -41,30 +43,30 @@ def get_float(s, cmd, argnum):
 def get_location(s, cmd, argnam):
     if(s.lower() == "bottom"):
         return visualizer.BOTTOM
-    else if(s.lower() == "middle"):
+    elif(s.lower() == "middle"):
         return visualizer.MIDDLE
-    else if(s.lower() == "top"):
+    elif(s.lower() == "top"):
         return visualizer.TOP
-    else if(s.lower() == "left"):
+    elif(s.lower() == "left"):
         return visualizer.LEFT
-    else if(s.lower() == "right"):
+    elif(s.lower() == "right"):
         return visualizer.RIGHT
 
-    else if(s.lower() == "first-third" or s.lower() == "first_third" or
+    elif(s.lower() == "first-third" or s.lower() == "first_third" or
             s == "1/3"):
         return visualizer.FIRST_THIRD
-    else if(s.lower() == "firstthird" or s.lower() == "second_third" or
+    elif(s.lower() == "firstthird" or s.lower() == "second_third" or
             s == "2/3"):
         return visualizer.SECOND_THIRD
 
-    else if(s.lower() == "first-quarter" or s.lower() == "first_quarter" or
+    elif(s.lower() == "first-quarter" or s.lower() == "first_quarter" or
             s == "1/4"):
         return visualizer.FIRST_QUARTER
-    else if(s.lower() == "first_quarter" or s.lower() == "third_quarter" or
+    elif(s.lower() == "first_quarter" or s.lower() == "third_quarter" or
             s == "3/4"):
         return visualizer.SECOND_QUARTER
 
-    else if(s.lower().startswith("arbitrary_")):
+    elif(s.lower().startswith("arbitrary_")):
         s = s.lower().replace("arbitrary", "")
         return visualizer.ARBITRARY_FRACTION(float(s))
 
@@ -161,14 +163,14 @@ def add_elements(nset, declarations):
             nset.add(visualizer.PolygonEqualizer(
                 get_location(s[1], "polyeq", "<ylocation>"),
                 get_int(s[2], "polyeq","<yoffset>"),
-                get_boolean(s[3], "polyeq", "<direction>"),
+                get_boolean(s[3], "polyeq", "<direction>"))
             )
         elif(s[0].lower() == "bulbeq"):
             if(len(s)==3):
                 s.append("true")
             if(len(s)==4):
                 s.append("false")
-            if(len(s)==5:
+            if(len(s)==5):
                 s.append("1.4")
             
             nset.add(visualizer.BulbEqualizerAA(
@@ -183,7 +185,7 @@ def get_visualizer_from_args(totaltime):
     try:
         args, postargs = getopt.getopt(
             sys.argv[1:],
-            "f:r:p:x:m:n:s:b:",
+            "f:r:p:x:m:n:s:b:e:",
             ["fresolution=", "resolution=", "preview=", "expandding=", "inpadding=",
                 "colormain=", "colorsub=", "colorback=", "elements="
             ]
@@ -197,26 +199,25 @@ def get_visualizer_from_args(totaltime):
         #look for env stuff
         print args
         for arg in args:
-            if arg[0] in interp.keys:
-                if arg[0] == "f" or arg[0] == "fresolution=":
-                    newset.fourier_resolution = int(arg[1])
-                elif arg[0] == "r" or arg[0] == "resolution=":
-                    split = arg[1].replace(")","").replace("(","").replace(" ","").split("x")
-                    newset.resolution = (int(split[0]), int(split[1]))
-                elif arg[0] == "n" or arg[0] == "inpadding=":
-                    newset.padding_internal = float(arg[1])
-                elif arg[0] == "p" or arg[0] == "preview":
-                    print("preview option not implemented")
-                elif arg[0] == "x" or arg[0] == "expadding":
-                    newset.padding_external = float(arg[1])
-                elif arg[0] == "m" or arg[0] == "colormain":
-                    newset.colorMain = parseColor(arg[1])
-                elif arg[0] == "s" or arg[0] == "colorsub":
-                    newset.colorSub = parseColor(arg[1])
-                elif arg[0] == "b" or arg[0] == "colorback":
-                    newset.colorBkg = parseColor(arg[1])
-                elif arg[0] == "e" or arg[0]=="elements":
-                    addElements(newset, arg[1].split(","))
+            if arg[0] == "f" or arg[0] == "fresolution=":
+                newset.fourier_resolution = int(arg[1])
+            elif arg[0] == "r" or arg[0] == "resolution=":
+                split = arg[1].replace(")","").replace("(","").replace(" ","").split("x")
+                newset.resolution = (int(split[0]), int(split[1]))
+            elif arg[0] == "n" or arg[0] == "inpadding=":
+                newset.padding_internal = float(arg[1])
+            elif arg[0] == "p" or arg[0] == "preview":
+                print("preview option not implemented")
+            elif arg[0] == "x" or arg[0] == "expadding":
+                newset.padding_external = float(arg[1])
+            elif arg[0] == "m" or arg[0] == "colormain":
+                newset.colorMain = parseColor(arg[1])
+            elif arg[0] == "s" or arg[0] == "colorsub":
+                newset.colorSub = parseColor(arg[1])
+            elif arg[0] == "b" or arg[0] == "colorback":
+                newset.colorBkg = parseColor(arg[1])
+            elif arg[0] == "e" or arg[0]=="elements":
+                addElements(newset, arg[1].split(","))
             else:
                 print("Unknown Arg %s"%(arg[0]))
         newset.song_length = totaltime
@@ -243,15 +244,16 @@ class PlayerThread(threading.Thread):
 
 if __name__ == "__main__":
     pygame.init()
+    """
     mneplayer = ''
     if (sys.argv[1].split(".")[-1].lower() == "mp3"):
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_MP3)
     else:
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_WAV)
-
     playerthread = PlayerThread(mneplayer)
     playerthread.start()
-   
+   """
+    
     finish_time=5
     fps = 60
     length = 20.0
@@ -260,6 +262,9 @@ if __name__ == "__main__":
     #visualizerSet = visualizer.make_minimalist_eq(length)
     #visualizerSet = visualizer.make_trendy_visualizer(length)
     visualizerSet.initial_bake()
+
+    print visualizerSet.visualizers
+    """
     data = mneplayer.get_data()
 
     window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
@@ -292,3 +297,4 @@ if __name__ == "__main__":
 
         lastupdate = time.time()
         sumelapsed = lastupdate-initialtime
+    """

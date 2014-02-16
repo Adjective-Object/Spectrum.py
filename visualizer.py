@@ -226,8 +226,8 @@ class PolygonEqualizer(Equalizer):
 							surface.get_height()-self.parent.padding_external*2)
 
 		poly = [
-			(self.parent.padding_external + operatingdim[0], self.baked_location[1],
-			(self.parent.padding_external, self.baked_location[1]
+			(self.parent.padding_external + operatingdim[0], self.baked_location[1]),
+			(self.parent.padding_external, self.baked_location[1])
 		]
 
 		w = operatingdim[0]/(self.parent.fourier_resolution*1.0)
@@ -235,11 +235,10 @@ class PolygonEqualizer(Equalizer):
 			off = operatingdim[1]/2 * self.display_fourier[x]
 			poly.append( (
 				self.parent.padding_external+ w*x + w/2,
-				self.baked_location[1] - off*direction + off * not (direction)
+				self.baked_location[1] - off*direction + off * (not direction)
 				)
 			)
 		pygame.draw.polygon(surface, self.parent.colorMain, poly)      
-	)
 
 
 class ThresholdPolygonEqualizer(PolygonEqualizer):
