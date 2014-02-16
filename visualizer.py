@@ -39,11 +39,13 @@ class Visualizer:
 
 	def gradualize_display(self, elapsed):
 		return [
-			self.moving_towards(
-				self.display_fourier[i],
-				self.operating_fourier[i],
-				 (self.operating_fourier[i] - self.display_fourier[i] ) * elapsed * self.smoothing_factor)
-				for i in range(fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
+			(self.moving_towards(
+					self.display_fourier[i],
+					self.operating_fourier[i],
+					(self.operating_fourier[i] - self.display_fourier[i]) *
+						elapsed * self.smoothing_factor
+			))
+			for i in range(fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
 	
 	def moving_towards(self, start, destination, delta):
 			return (detination if
@@ -244,13 +246,13 @@ class BulbVisualizer(PolygonVisualizer):
 
 class BulbVisualizerAA(BulbVisualizer):
 
-	def __init__(self,
+	def __init__(self, wireframe,
 			color=pygame.Color(32, 32, 32, 255),
 			bkgColor=pygame.Color(16, 16, 16, 1),
 			padding_external=50,
 			padding_internal=5, **kwargs):
 		BulbVisualizer.__init__(self, 2, color,bkgColor,padding_external,padding_internal)
-		self.wireframe=False
+		self.wireframe=wireframe
 
 	def generate_verts(self, heights, line, width, flipped=False):
 		verts = [(width-self.padding_external, line),
@@ -275,7 +277,6 @@ class BulbVisualizerAA(BulbVisualizer):
 				surface,
 				verts,
 				self.color)
-		return verts
 
 		pygame.gfxdraw.aapolygon(
 			surface,
@@ -292,17 +293,6 @@ class BulbVisualizerAA(BulbVisualizer):
 				2
 			)
 		)
-
-
-class BulbVisualizerAAWireframe(BulbVisualizerAA):
-	def __init__(self,
-			color=pygame.Color(32, 32, 32, 255),
-			bkgColor=pygame.Color(16, 16, 16, 1),
-			padding_external=50,
-			padding_internal=5, **kwargs):
-		BulbVisualizer.__init__(self,color,bkgColor,padding_external,padding_internal)
-		self.wireframe=True
-
 
 class VeryTrendyVisualizer(BulbVisualizerAA):
 	def __init__(self, song_title, artist, display_art, display_font_big, display_font_small, song_length_seconds):
@@ -378,12 +368,12 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 			surface,
 			verts,
 			self.color)
-		"""
+		
 		pygame.gfxdraw.aapolygon(
 			surface,
 			verts,
 			self.color)
-		"""
+		
 		#TODO masking colors
 
 		pygame.gfxdraw.box(
@@ -412,23 +402,26 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 
 if __name__ == "__main__":
 	pygame.init()
-	"""
+	
 	visualizer = [
-		BarVisualizer,
-		PolygonVisualizer,
-		ThresholdPolygonVisualizer,
-		BulbVisualizer,
-		BulbVisualizerAA,
-		BulbVisualizerAAWireframe
-		] [int(sys.argv[1])] () if len(sys.argv)>1 else BarVisualizer()
-	"""
-	running=True
-
-	fps = 60
-	length = 10.0
-
-	window = pygame.display.set_mode((800,450))
-	visualizer = VeryTrendyVisualizer(
+		lambda:
+			BarVisualizer(),
+		
+		lambda:
+			PolygonVisualizer()
+		,
+		lambda:
+			ThresholdPolygonVisualizer()
+		,
+		lambda:
+			BulbVisualizer()
+		,
+		lambda:
+			BulbVisualizerAA(False)
+		,
+		lambda: BulbVisualizerAA(True)
+		,
+		lambda:VeryTrendyVisualizer(
 			"S-SONG SENPAI",
 			"IS-LIMBICS",
 			pygame.image.load("./dunes.jpg"),
@@ -436,11 +429,22 @@ if __name__ == "__main__":
 			pygame.font.Font("./Quicksand_light.ttf", 20),
 			length
 		)
+		] [int(sys.argv[1])] () if len(sys.argv)>1 else BarVisualizer()
+	
+	finish_time=5
+
+	running=True
+
+	fps = 60
+	length = 10.0
+
+	window = pygame.display.set_mode((800,450))
+	
 
 	elapsed = 1.0/fps
 	sumelapsed = 0.0
 	lastupdate = time.time()
-	while(sumelapsed <= length+2):
+	while(sumelapsed <= length+finish_time):
 		if(sumelapsed < length):
 			signal = make_random_noise()
 		else:
