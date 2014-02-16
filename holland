@@ -1,0 +1,1 @@
+python MNEVisualize.py -e "trendy ./flowers.jpg HOLLAND_1945 NEUTRAL_MILK_HOTEL" -r 1920x1080 1945.wav

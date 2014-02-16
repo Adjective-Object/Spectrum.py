@@ -1,0 +1,1 @@
+python MNEVisualize.py -e 'bkgimg ./floraldune.jpg, polyeq BOTTOM 0 1, polyeq BOTTOM -20 1 1, polyeq BOTTOM -40 1 1, songinf TOP LEFT HOLLAND_1945 NEUTRAL_MILK_HOTEL 0 0, time LEFT MIDDLE 0 -72' --font=./Quicksand_light.ttf,72 --colormain=255,255,255,200 --colorsub=255,255,255,150 -r 1920x1080 1945.wav
