@@ -68,7 +68,7 @@ class BackgroundImageVisualizer(Visualizer):
 
 
 class TextVisualizer(Visualizer):
-	def __init__(self, tracktitle, artistname, location_x, location_y):
+	def __init__(self, location_x, location_y, tracktitle, artistname):
 		Visualizer.__init__(self)
 		self.track_title, self.artist_name = tracktitle, artistname
 		self.location = (location_x, location_y)
@@ -142,9 +142,8 @@ class TimeVisualizer(Visualizer):
 
 
 class Equalizer(Visualizer):
-	def __init__(self,
-			smoothing_factor=0,
-			input_output_relationship=lambda self, i, elapsed: i,
+	def __init__(self, location_y, offset_y, direction,
+			smoothing_factor=0, input_output_relationship=lambda self, i, elapsed: i,
 			):
 		Visualizer.__init__(self)
 		self.location_y = location_y
@@ -188,7 +187,7 @@ class Equalizer(Visualizer):
 
 class BarEqualizer(Equalizer):
 	def __init__(self, location_y, offset_y, direction=True):
-		Equalizer.__init__(self, location_y, offsety, direction,
+		Equalizer.__init__(self, location_y, offset_y, direction,
 			2, lambda self, f, elapsed: f)
 		
 	def initial_bake(self):
@@ -372,9 +371,13 @@ class VisualizerSet:
 
 	def add(self, v):
 		v.parent = self
-		self.visualizers.add(v)
+		self.visualizers.append(v)
 
 	def initial_bake(self):
+		if(not self.font_big):
+			self.font_big = pygame.font.Font(pygame.font.get_default_font(), 24)
+		if(not self.font_small):
+			self.font_small = pygame.font.Font(pygame.font.get_default_font(), 18)
 		self.operatingdim = (self.resolution[0]-self.padding_external*2, self.resolution[1]-self.padding_external*2)
 
 		for v in self.visualizers:

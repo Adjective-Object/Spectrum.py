@@ -25,25 +25,32 @@ def parseColor(string):
         return pygame.Color(0,0,0)
 
 
-def get_boolean(s, cmd, argnum):
+def get_boolean(s, cmd, argnam):
     if s=="true" or s=="t" or s=="1":
         return True
     elif s=="false" or s=="f" or s=="0":
         return False
-    print "Improperly specified boolean argument %s in command %s"%(argnum, cmd)
+    print "Improperly specified boolean argument %s in command %s"%(argnam, cmd)
     sys.exit(1)
 
-def get_float(s, cmd, argnum):
+def get_int(s, cmd, argnam):
     try:
         return int(s)
     except Exception:
-        print "Improperly specified float argument %s in command %s"%(argnum, cmd)
+        print "Improperly specified int argument %s in command %s"%(argnam, cmd)
+        sys.exit(1)
+
+def get_float(s, cmd, argnam):
+    try:
+        return float(s)
+    except Exception:
+        print "Improperly specified float argument %s in command %s"%(argnam, cmd)
         sys.exit(1)
 
 def get_location(s, cmd, argnam):
     if(s.lower() == "bottom"):
         return visualizer.BOTTOM
-    elif(s.lower() == "middle"):
+    elif(s.lower() == "middle" or s=="one-half" or s=="one_hald"):
         return visualizer.MIDDLE
     elif(s.lower() == "top"):
         return visualizer.TOP
@@ -53,25 +60,25 @@ def get_location(s, cmd, argnam):
         return visualizer.RIGHT
 
     elif(s.lower() == "first-third" or s.lower() == "first_third" or
-            s == "1/3"):
+            s.lower() == "1/3" or s.lower()=="one-third" or s.lower()=="one_third"):
         return visualizer.FIRST_THIRD
-    elif(s.lower() == "firstthird" or s.lower() == "second_third" or
-            s == "2/3"):
+    elif(s.lower() == "second-third" or s.lower() == "second_third" or
+            s.lower() == "2/3" or s.lower()=="two-thirds" or s.lower()=="two_thirds"):
         return visualizer.SECOND_THIRD
 
     elif(s.lower() == "first-quarter" or s.lower() == "first_quarter" or
-            s == "1/4"):
+            s.lower() == "1/4" or s.lower() == "one-quarter" or s.lower()=="one_quarter"):
         return visualizer.FIRST_QUARTER
-    elif(s.lower() == "first_quarter" or s.lower() == "third_quarter" or
-            s == "3/4"):
+    elif(s.lower() == "third_quarter" or s.lower() == "third_quarter" or
+            s.lower() == "3/4" or s.lower()=="three-quarters" or s.lower()=="three_quarters"):
         return visualizer.SECOND_QUARTER
 
     elif(s.lower().startswith("arbitrary_")):
-        s = s.lower().replace("arbitrary", "")
-        return visualizer.ARBITRARY_FRACTION(float(s))
+        n = s.lower().replace("arbitrary_", "")
+        return visualizer.ARBITRARY_FRACTION(float(n))
 
-    print "Improperly specified argument %s in command %s"%(argnum, cmd)
-    system.exit(1)
+    print "Improperly specified argument %s in command %s"%(argnam , cmd)
+    sys.exit(1)
 
 
 def printHelpString():
@@ -131,41 +138,55 @@ def printHelpString():
     print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
     print "      <wireframe> defaults to false, <fatness> defaults to 1.4"
 
+def check_num_args(funcname, s, num):
+    if len(s)< num:
+        print "error: %s expecting %s args got %s"%(funcname, num, len(s))
+        sys.exit(1)
 
 def add_elements(nset, declarations):
     for declaration in declarations:
         s = declaration.split(" ")
+        while ('' in s):
+            s.remove('')
+
         if(s[0].lower() == "hbar"):
-            nset.add(visualizer.HLineVisualizer(
+            check_num_args("hbar",s,2)
+            nset.add(visualizer.HlineVisualizer(
                 get_location(s[1], "hbar", "<ylocation>"),
                 get_int(s[2], "hbar", "<yoffset>"))
             )
         elif(s[0].lower() == "bkgimg"): #TODO graceful image load fail
+            check_num_args("hbar",s,2)
             nset.add(visualizer.BackgroundImageVisualizer(s[1]))
         elif(s[0].lower() == "time"):
+            check_num_args("hbar",s,2)
             nset.add(visualizer.TimeVisualizer(
                 get_location(s[1],"time","<xlocation>"),
                 get_location(s[2],"time","<ylocation>"))
             )
         elif(s[0].lower() == "songinf"):
+            check_num_args("songinf",s,4)
             nset.add(visualizer.TextVisualizer(
                 get_location(s[1],"songinf","<xlocation>"),
                 get_location(s[2],"songinf","<ylocation>"),
                 s[3], s[4])
             )
         elif(s[0].lower() == "bareq"):
+            check_num_args("bareq",s,3)
             nset.add(visualizer.BarEqualizer(
                 get_location(s[1], "bareq", "<ylocation"),
                 get_int(s[2], "bareq", "<yoffset>"),
                 get_boolean(s[3], "bareq", "<direction>"))
             )
         elif(s[0].lower() == "polyeq"):
+            check_num_args("polyeq",s,3)
             nset.add(visualizer.PolygonEqualizer(
                 get_location(s[1], "polyeq", "<ylocation>"),
                 get_int(s[2], "polyeq","<yoffset>"),
                 get_boolean(s[3], "polyeq", "<direction>"))
             )
         elif(s[0].lower() == "bulbeq"):
+            check_num_args("bulbeq",s,3)
             if(len(s)==3):
                 s.append("true")
             if(len(s)==4):
@@ -178,8 +199,10 @@ def add_elements(nset, declarations):
                 get_int(s[2], "bulbeq","<yoffset>"),
                 get_boolean(s[3], "bulbeq", "<direction>"),
                 get_boolean(s[4], "bulbeq", "<wireframe>"),
-                get_float(s[5], "bulbeq, <fatness>"))
+                get_float(s[5], "bulbeq", "<fatness>"))
             )
+        else:
+            print("cannot parse declaration %s"%(s))
 
 def get_visualizer_from_args(totaltime):
     try:
@@ -197,27 +220,27 @@ def get_visualizer_from_args(totaltime):
                 sys.exit(0)
         newset = visualizer.VisualizerSet()
         #look for env stuff
-        print args
         for arg in args:
-            if arg[0] == "f" or arg[0] == "fresolution=":
+            if arg[0] == "-f" or arg[0] == "--fresolution":
                 newset.fourier_resolution = int(arg[1])
-            elif arg[0] == "r" or arg[0] == "resolution=":
+            elif arg[0] == "-r" or arg[0] == "--resolution":
                 split = arg[1].replace(")","").replace("(","").replace(" ","").split("x")
                 newset.resolution = (int(split[0]), int(split[1]))
-            elif arg[0] == "n" or arg[0] == "inpadding=":
+            elif arg[0] == "-n" or arg[0] == "--inpadding":
                 newset.padding_internal = float(arg[1])
-            elif arg[0] == "p" or arg[0] == "preview":
+            elif arg[0] == "-p" or arg[0] == "--preview":
                 print("preview option not implemented")
-            elif arg[0] == "x" or arg[0] == "expadding":
+            elif arg[0] == "-x" or arg[0] == "--expadding":
                 newset.padding_external = float(arg[1])
-            elif arg[0] == "m" or arg[0] == "colormain":
+            elif arg[0] == "-m" or arg[0] == "--colormain":
                 newset.colorMain = parseColor(arg[1])
-            elif arg[0] == "s" or arg[0] == "colorsub":
+            elif arg[0] == "-s" or arg[0] == "--colorsub":
                 newset.colorSub = parseColor(arg[1])
-            elif arg[0] == "b" or arg[0] == "colorback":
+            elif arg[0] == "-b" or arg[0] == "--colorback":
                 newset.colorBkg = parseColor(arg[1])
-            elif arg[0] == "e" or arg[0]=="elements":
-                addElements(newset, arg[1].split(","))
+            elif arg[0] == "-e" or arg[0]=="--elements":
+                s = arg[1].split(",")
+                add_elements(newset, s)
             else:
                 print("Unknown Arg %s"%(arg[0]))
         newset.song_length = totaltime
@@ -244,7 +267,7 @@ class PlayerThread(threading.Thread):
 
 if __name__ == "__main__":
     pygame.init()
-    """
+    
     mneplayer = ''
     if (sys.argv[1].split(".")[-1].lower() == "mp3"):
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_MP3)
@@ -252,7 +275,7 @@ if __name__ == "__main__":
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_WAV)
     playerthread = PlayerThread(mneplayer)
     playerthread.start()
-   """
+   
     
     finish_time=5
     fps = 60
@@ -264,7 +287,7 @@ if __name__ == "__main__":
     visualizerSet.initial_bake()
 
     print visualizerSet.visualizers
-    """
+    
     data = mneplayer.get_data()
 
     window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
@@ -297,4 +320,4 @@ if __name__ == "__main__":
 
         lastupdate = time.time()
         sumelapsed = lastupdate-initialtime
-    """
+    
