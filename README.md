@@ -1,6 +1,6 @@
 AudioVisuals
 ============
 
-A python script to generate simple fourier-transform based visualizations of songs (PennApps project)
+A python script to generate simple fourier-transform based visualizations of songs
 
-Made with [Speculative](https://github.com/speculative)
+Made in collaboration with [Speculative](https://github.com/speculative) at PennApps
