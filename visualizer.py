@@ -200,7 +200,7 @@ class BarEqualizer(Equalizer):
 				self.parent.colorMain,
 				pygame.Rect(
 					self.baked_location[0]+(rectwidth + self.parent.padding_internal)*x,
-					self.baked_location[0]+offsety-self.parent.operatingdim[1]/2 * self.display_fourier[x],
+					self.baked_location[1]+self.offsety-self.parent.operatingdim[1]/2 * self.display_fourier[x],
 					rectwidth,
 					self.parent.operatingdim[1]/2 * self.display_fourier[x]
 				)
