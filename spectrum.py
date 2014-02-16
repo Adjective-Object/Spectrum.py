@@ -30,6 +30,7 @@ def generate_spectrum(data, stereo=True):
     right_fft = 20 * numpy.log10(numpy.absolute(right_fft))
     spectrum = numpy.add(left_fft, right_fft)
     spectrum = kill_infinities(spectrum)
+    spectrum = spectrum / (200.0)
     return spectrum
 
 def remove_negative(spectrum):
