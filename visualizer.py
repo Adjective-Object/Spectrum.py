@@ -158,23 +158,34 @@ class Equalizer(Visualizer):
 		self.render(surface)
 
 	def gradualize_display(self, elapsed):
-		return [
-			(moving_towards(
+		return ([( moving_towards(
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
 						elapsed * self.smoothing_factor
-			))
-			for i in range(self.parent.fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
+			) if  self.display_fourier[i]<self.operating_fourier[i] else
+			moving_towards(
+					self.display_fourier[i],
+					self.operating_fourier[i],
+					(self.operating_fourier[i] - self.display_fourier[i]) *
+						elapsed * self.smoothing_factor * 5
+			) ) for i in range(self.parent.fourier_resolution)]
+
+		if self.smoothing_factor != -1 else self.operating_fourier)
 	
 	def render(self, surface):
 		pass 
 
 
 class BarEqualizer(Equalizer):
-	def __init__(self):
+	def __init__(self, location_y, offset_y):
 		Equalizer.__init__(self,
 			1, lambda self, f, elapsed: f)
+		self.location_y = location_y
+		self.offsety = offsety
+
+	def initial_bake(self):
+		self.baked_location = self.get_baked_coords(LEFT,self.location_y)
 
 	def render(self, surface):
 		rectwidth = (
@@ -187,8 +198,8 @@ class BarEqualizer(Equalizer):
 				surface,
 				self.parent.colorMain,
 				pygame.Rect(
-					self.parent.padding_external+(rectwidth + self.parent.padding_internal)*x,
-					surface.get_height()/2-self.parent.operatingdim[1]/2 * self.display_fourier[x],
+					self.baked_location[0]+(rectwidth + self.parent.padding_internal)*x,
+					self.baked_location[0]+offsety-self.parent.operatingdim[1]/2 * self.display_fourier[x],
 					rectwidth,
 					self.parent.operatingdim[1]/2 * self.display_fourier[x]
 				)
@@ -387,8 +398,8 @@ def make_trendy_visualizer(totaltime):
 
 def make_minimalist_eq(totaltime):
 	v = VisualizerSet(
-				TimeVisualizer(RIGHT, MIDDLE_THIRD, totaltime),
-				BarEqualizer()
+				TimeVisualizer(RIGHT, MIDDLE, totaltime),
+				BarEqualizer(SECOND_THIRD, 0)
 				)
 	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
 	v.font_small = pygame.font.Font("./Quicksand_regular.ttf",20)
