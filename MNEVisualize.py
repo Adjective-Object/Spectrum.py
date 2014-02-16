@@ -133,11 +133,13 @@ class PlayerThread(threading.Thread):
         super(PlayerThread, self).__init__()
         self.player = player
     def run(self):
-        while(self.player.get_data() != ''):
+        while(self.live and (self.player.get_data() != '')):
             self.player.next_frame()
         self.live = False
     def live(self):
         return self.live
+    def kill(self):
+        self.live = False
 
 if __name__ == "__main__":
     pygame.init()
@@ -178,6 +180,7 @@ if __name__ == "__main__":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                playerthread.kill()
                 sys.exit(0)
 
         elapsed = time.time()-lastupdate
