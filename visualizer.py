@@ -4,61 +4,58 @@ import time
 import sys
 import getopt
 
-class Constants:
-	pass
+#global vars
+LEFT = 0
+MIDDLE = 6
+RIGHT = 12
+TOP = 0
+BOTTOM = 12
+FIRST_THIRD= 4
+SECOND_THIRD = 8
 
+def ARBITRARY_FRACTION(x):
+	return 12*x
 
-constants = Constants()
-constants.fourier_resolution = 10
-
-constants.mainColor = pygame.Color(32,32,32)
-constants.subColor = pygame.Color(24,24,24)
-constants.bkgColor = pygame.Color(16,16,16)
-
-constants.padding_external = 50
-constants.padding_internal = 5
-
-constants.resolution = (800,450)
-
-constants.LEFT = 0
-constants.MIDDLE = 6
-constants.RIGHT = 12
-constants.TOP = 0
-constants.BOTTOM = 12
-
-constants.font_big = None
-constants.font_small = None
-
-#lazy correspondance function
-constants.lazy_corr = lambda self, i, elapsed: i
+RESOLUTION = (800, 450)
 
 #list of values 0.0 to 1.0
-def make_random_noise():
-	return [random.random() *(constants.fourier_resolution-i)/constants.fourier_resolution 
-			for i in range(constants.fourier_resolution)]
+def make_random_noise(resolution):
+	return [random.random() *(resolution-i)/resolution 
+			for i in range(resolution)]
 
 
-def moving_towards(self, start, destination, delta):
-			return (detination if
+def moving_towards(start, destination, delta):
+			return (destination if
 				(abs(delta)<abs(destination-start) and (delta>0) != (destination-start>0))
 				else start+delta)
 
 
-class Visualizer():
+class Visualizer(object):
 	sortdepth = 1
+	parent = None
+
+	def __init__(self):
+		self.baked_location = (0,0)
+
+	def initial_bake(self):
+		pass
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		pass
 
+	def get_baked_coords(self, xbake, ybake):
+		return (self.parent.padding_external+1.0*self.parent.operatingdim[0]*xbake/RIGHT,
+				self.parent.padding_external+1.0*self.parent.operatingdim[1]*ybake/BOTTOM)
 
 class BackgroundImageVisualizer(Visualizer):
 
-	def __init__(self, image):
-		self.original_art = display_art
-		self.scaled_art = self.recalcuate_size()
+	def __init__(self, imagePATH):
+		Visualizer.__init__(self)
+		self.original_art = pygame.image.load(imagePATH)
+		self.scaled_art = self.recalculate_size()
 
 	def recalculate_size(self):
-		self.dest_dim = contents.resolution
+		self.dest_dim = RESOLUTION
 
 		if( self.original_art.get_width()*1.0/self.original_art.get_height()  < self.dest_dim[0]*1.0/self.dest_dim[1]):
 			self.scaled_art = pygame.transform.smoothscale(
@@ -72,75 +69,131 @@ class BackgroundImageVisualizer(Visualizer):
 			)
 		return self.scaled_art
 
-	def render(self,surface, percentcomp):
-		surface.blit(self.image)
+	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+		surface.blit(self.scaled_art, (0,0))
 
 
 class TextVisualizer(Visualizer):
 	def __init__(self, tracktitle, artistname, location_x, location_y):
+		Visualizer.__init__(self)
 		self.track_title, self.artist_name = tracktitle, artistname
-		self.baked_location = (0,0)
+		self.location = (location_x, location_y)
 
-		self.label_artist = self.font_big.render(self.artist, 1, self.color)
-		self.label_song = self.font_small.render(self.song_title, 1, self.color)
+	def initial_bake(self):		
+		self.label_artist = self.parent.font_big.render(self.artist_name, 1, self.parent.colorMain)
+		self.label_song = self.parent.font_small.render(self.track_title, 1, self.parent.colorSub)
+		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 
-	def render(self, surface, percentcomp):
-		surface.blit(self.label_song, (baked_location[0], baked_location[1]))
+	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+		surface.blit(self.label_song, (self.baked_location[0], self.baked_location[1]))
 		surface.blit(self.label_artist,
 				(
-					baked_location[0],
-					baked_location[1]+constants.font_small.get_height()+constants.padding_internal
+					self.baked_location[0],
+					self.baked_location[1]+self.parent.font_small.get_height()+self.parent.padding_internal
 				)
 		)
 
 
 class HlineVisualizer(Visualizer):
 
-	def __init__(self, vpos, offsety):
-		self.vpos = vpos
+	def __init__(self, location_y, offsety):
+		Visualizer.__init__(self)
 		self.offsety = offsety
-		recalculate_anchor()
+		self.location = (LEFT, location_y)
 
-	def recalculate_anchor():
-		self.anchor = constants.resolution[1] * 
-				(self.offsety/constants.BOTTOM) + offsety
+	def initial_bake(self):
+		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 
-	def render(self, surface, percentcomp):
+	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+		print(self.baked_location)
 		pygame.gfxdraw.box(
 			surface,
 			pygame.Rect(
-				self.padding_external,
-				self.anchor + self.offsety,
-				operatingdim[0] * percentcomp,
+				self.baked_location[0],
+				self.baked_location[1] + self.offsety,
+				self.parent.operatingdim[0] * percentcomp,
 				3
 			),
-			self.color
+			self.parent.colorMain
 		)
+
+
+class TimeVisualizer(Visualizer):
+	def __init__(self, xpos, ypos, totaltime):
+		Visualizer.__init__(self)
+		self.song_length = totaltime
+		self.old_timestring = "0:00"
+		self.location = (xpos, ypos)
+
+	def initial_bake(self):
+		self.label_time = self.parent.font_small.render("0:00", 1, self.parent.colorSub)
+		self.label_alltime = self.parent.font_small.render("/"+self.get_timestring(1), 1, self.parent.colorMain)
+		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
+
+	def get_timestring(self, percentcomp):
+		n = (percentcomp * self.song_length)
+		return "%d:%02d"%(int(n/60), int(n)%60)
+
+	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+		if(self.old_timestring != self.get_timestring(percentcomp)):
+			self.label_time = self.parent.font_small.render(self.get_timestring(percentcomp), 1, self.parent.colorSub)
+
+		surface.blit(self.label_time,
+			(self.baked_location[0]-109, self.baked_location[1]-self.parent.font_big.get_height()-8))
+		surface.blit(self.label_alltime,
+			(self.baked_location[0]-65, self.baked_location[1]-self.parent.font_big.get_height()-8))
+
+
+
+class Equalizer(Visualizer):
+	def __init__(self,
+			smoothing_factor=0,
+			input_output_relationship=lambda self, i, elapsed: i,
+			):
+		Visualizer.__init__(self)
+		self.smoothing_factor = smoothing_factor
+		self.input_output_relationship = input_output_relationship
+
+	def initial_bake(self):
+		self.display_fourier = [0]*self.parent.fourier_resolution
+		self.operating_fourier = [0]*self.parent.fourier_resolution
+
+	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
+		self.operating_fourier = self.input_output_relationship( self, fourier, elapsed)
+		self.display_fourier = self.gradualize_display(elapsed)
+		self.render(surface)
+
+	def gradualize_display(self, elapsed):
+		return [
+			(moving_towards(
+					self.display_fourier[i],
+					self.operating_fourier[i],
+					(self.operating_fourier[i] - self.display_fourier[i]) *
+						elapsed * self.smoothing_factor
+			))
+			for i in range(self.parent.fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
+	
+	def render(self, surface):
+		pass 
 
 
 class BarEqualizer(Equalizer):
 	def __init__(self):
 		Equalizer.__init__(self,
-			1, lambda self, f, elapsed: f,
-			color, bkgColor, padding_external, padding_internal
-			)
+			1, lambda self, f, elapsed: f)
 
-	def render(self, surface, percentcomp):
-		operatingdim = (surface.get_width()-self.padding_external*2,
-							surface.get_height()-self.padding_external*2)
+	def render(self, surface):
 		rectwidth = (
-			(   operatingdim[0] -
-				self.padding_internal * (constants.fourier_resolution-1)
-			) / constants.fourier_resolution)
+			(   self.parent.operatingdim[0] -
+				self.parent.padding_internal * (self.parent.fourier_resolution-1)
+			) / self.parent.fourier_resolution)
 
-		surface.fill(self.bkgColor)
-
-		for x in range(constants.fourier_resolution):
+		for x in range(self.parent.fourier_resolution):
 			pygame.draw.rect(
 				surface,
-				self.color,
+				self.parent.colorMain,
 				pygame.Rect(
-					self.padding_external+(rectwidth + self.padding_internal)*x,
+					self.parent.padding_external+(rectwidth + self.parent.padding_internal)*x,
 					surface.get_height()/2-operatingdim[1]/2 * self.display_fourier[x],
 					rectwidth,
 					operatingdim[1]/2 * self.display_fourier[x]
@@ -149,75 +202,43 @@ class BarEqualizer(Equalizer):
 
 		pygame.draw.rect(
 			surface,
-			self.color,
+			self.parent.colorMain,
 			pygame.Rect(
-				self.padding_external,
-				surface.get_height()/2 + self.padding_internal,
+				self.parent.padding_external,
+				surface.get_height()/2 + self.parent.padding_internal,
 				operatingdim[0] * percentcomp,
 				2
 			)
 		)
 
 
-class Equalizer(Visualizer):
-	def __init__(self,
-			smoothing_factor=0,
-			input_output_relationship=constants.lazy_corr,
-			):
-		self.smoothing_factor = smoothing_factor
-		self.input_output_relationship = input_output_relationship
-
-		self.display_fourier = [0]*constants.fourier_resolution
-		self.operating_fourier = [0]*constants.fourier_resolution
-
-	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
-		self.operating_fourier = self.input_output_relationship( self, fourier, elapsed)
-		self.display_fourier = self.gradualize_display(elapsed)
-		self.render(surface, percentcomp)
-
-	def gradualize_display(self, elapsed):
-		return [
-			(self.moving_towards(
-					self.display_fourier[i],
-					self.operating_fourier[i],
-					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor
-			))
-			for i in range(contents.fourier_resolution)] if self.smoothing_factor != -1 else self.operating_fourier
-	
-	def render(self, surface, percentcomp):
-		pass
-
-
 class PolygonEqualizer(Equalizer):
-	def __init__(self, smoothing_factor=1):
-		Equalizer.__init__( smoothing_factor, constants.lazy_corr)
+	def __init__(self, smoothing_factor=1, input_output_relationship=lambda self, i, elapsed: i):
+		Equalizer.__init__( self, smoothing_factor, input_output_relationship)
 
 	def render(self, surface, percentcomp):
-		operatingdim = (surface.get_width()-self.padding_external*2,
-							surface.get_height()-self.padding_external*2)
-
-		surface.fill(self.bkgColor)
+		operatingdim = (surface.get_width()-self.parent.padding_external*2,
+							surface.get_height()-self.parent.padding_external*2)
 
 		poly = [
-			(self.padding_external + operatingdim[0], surface.get_height()/2),
-			(self.padding_external, surface.get_height()/2)
+			(self.parent.padding_external + operatingdim[0], surface.get_height()/2),
+			(self.parent.padding_external, surface.get_height()/2)
 		]
-		w = operatingdim[0]/(constants.fourier_resolution*1.0)
-		for x in range(constants.fourier_resolution):
+		w = operatingdim[0]/(self.parent.fourier_resolution*1.0)
+		for x in range(self.parent.fourier_resolution):
 			poly.append( (
-				self.padding_external+ w*x + w/2,
+				self.parent.padding_external+ w*x + w/2,
 				surface.get_height()/2 - operatingdim[1]/2 * self.display_fourier[x]
 				)
 			)
-		pygame.draw.polygon(surface, self.color, poly)      
+		pygame.draw.polygon(surface, self.parent.colorMain, poly)      
 
 		pygame.draw.rect(
 			surface,
-			self.color,
+			self.parent.colorMain,
 			pygame.Rect(
-				self.padding_external,
-				surface.get_height()/2 + self.padding_internal,
+				self.parent.padding_external,
+				surface.get_height()/2 + self.parent.padding_internal,
 				operatingdim[0] * percentcomp,
 				2
 			)
@@ -236,7 +257,7 @@ class ThresholdPolygonEqualizer(PolygonEqualizer):
 							f[i] * (f[i] > (self.trigger_sensitivity * self.previous_fourier[i])),
 							self.operating_fourier[i] - elapsed * self.decay_factor
 						)
-					for i in range(constants.fourier_resolution)]
+					for i in range(self.parent.fourier_resolution)]
 			),
 			color, bkgColor, padding_external, padding_internal
 			)
@@ -244,15 +265,15 @@ class ThresholdPolygonEqualizer(PolygonEqualizer):
 		self.smoothing_factor = 5
 		self.trigger_sensitivity = 50
 		self.decay_factor = decay_factor
-		self.previous_fourier = [1]*constants.fourier_resolution
+		self.previous_fourier = [1]*self.parent.fourier_resolution
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		Visualizer.render_to_screen(self, surface, fourier, percentcomp, elapsed)
 		self.previous_fourier = fourier
 
 
-class BulbVisualizer(PolygonEqualizer):
-	def __init__(self, smoothing_factor=1):
+class BulbEqualizer(PolygonEqualizer):
+	def __init__(self, smoothing_factor=1, orientation=True):
 		PolygonEqualizer.__init__(self, smoothing_factor) 
 		self.hscale = 20.0
 		self.fatness_factor = 1.4
@@ -268,9 +289,9 @@ class BulbVisualizer(PolygonEqualizer):
 				(( abs(i-location) * (1/self.hscale)/3)**self.fatness_factor)*3
 			)* normheight)
 
-	def render(self, surface, percentcomp):
-		operatingdim = (surface.get_width()-self.padding_external*2,
-							surface.get_height()-self.padding_external*2)
+	def render(self, surface):
+		operatingdim = (surface.get_width()-self.parent.padding_external*2,
+							surface.get_height()-self.parent.padding_external*2)
 
 		heights = [0]*operatingdim[0]
 
@@ -280,160 +301,106 @@ class BulbVisualizer(PolygonEqualizer):
 
 		heights = [ max(int(height*surface.get_height()/2),2) for height in heights]
 
-		self.do_render(surface, operatingdim, heights, percentcomp)
+		self.do_render(surface, operatingdim, heights)
 
-	def do_render(self, surface, operatingdim, heights, percentcomp):
-
-		surface.fill(self.bkgColor)
-
+	def do_render(self, surface, operatingdim, heights):
 		for x in range(len(heights)):
 			pygame.draw.rect(
 				surface,
-				self.color,
+				self.parent.colorMain,
 				pygame.Rect(
-					self.padding_external+(x),
+					self.parent.padding_external+(x),
 					surface.get_height()/2-heights[x]+1,
 					1, heights[x]
 				)
 			)
 
-class BulbVisualizerAA(BulbVisualizer):
+class BulbEqualizerAA(BulbEqualizer):
 
-	def __init__(self, wireframe = False,  smoothing_factor=1):
-		BulbVisualizer.__init__(self, smoothing_factor)
+	def __init__(self, location_y, wireframe = False, orientation=True,
+			smoothing_factor=1,  input_output_relationship=lambda self, i, elapsed: i):
+		BulbEqualizer.__init__(self, smoothing_factor, input_output_relationship)
 		self.wireframe=wireframe
+		self.location = (LEFT, location_y)
+		self.orientation = orientation;
+
+	def initial_bake(self):
+		super(BulbEqualizerAA, self).initial_bake()
+		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 
 	def generate_verts(self, heights, line, width, flipped=False):
-		verts = [(width-self.padding_external, line),
-				(self.padding_external, line)]      
+		verts = [(width-self.parent.padding_external, line),
+				(self.parent.padding_external, line)]      
 
 		verts = verts + [
-			(   self.padding_external+h,
+			(   self.parent.padding_external+h,
 				line - (heights[h] if not flipped else -heights[h]) )
 			for h in range(len(heights))
 		]
 
 		return verts
 
-	def do_render(self, surface, operatingdim, heights, percentcomp):
-		verts = self.generate_verts(heights, surface.get_height()/2, surface.get_width())
+	def do_render(self, surface, operatingdim, heights):
+		verts = self.generate_verts(heights, self.baked_location[1], surface.get_width(), not self.orientation)
 
 		if( not self.wireframe):
 			pygame.gfxdraw.filled_polygon(
 				surface,
 				verts,
-				self.color)
+				self.parent.colorMain)
 
 		pygame.gfxdraw.aapolygon(
 			surface,
 			verts,
-			self.color)
-
-class VeryTrendyVisualizer(BulbVisualizerAA):
-	def __init__(self, song_title, artist, display_art, display_font_big, display_font_small, song_length_seconds):
-		BulbVisualizerAA.__init__(
-			self, False,
-			pygame.Color(255,255,255,50),
-			pygame.Color(255,255,255,30),
-			0, 3)
-
-		self.decay_factor = 20
-		self.smoothing_factor_fast = 10
-
-		self.song_title = song_title
-		self.artist = artist
-		self.song_length = song_length_seconds
-
-
-		self.original_art = display_art
-
-		self.dest_dim = 0;
-		
-		self.font_big = display_font_big
-		self.font_small = display_font_small
-
-		self.label_time = self.font_small.render("0:00", 1, self.bkgColor)
-		self.label_alltime = self.font_small.render("/"+self.get_timestring(1), 1, self.color)
-		self.old_timestring = "0:00"
-
-	def get_timestring(self, percentcomp):
-		n = (percentcomp*self.song_length)
-		return "%d:%02d"%(int(n/60), int(n)%60)
-
-	def gradualize_display(self, elapsed):
-		out = [0]*constants.fourier_resolution
-		for i in range(constants.fourier_resolution):
-			if(self.display_fourier[i]>self.operating_fourier[i]):
-				out[i] = self.moving_towards(
-									self.display_fourier[i],
-									self.operating_fourier[i],
-									(self.operating_fourier[i] - self.display_fourier[i]) *
-										elapsed * self.smoothing_factor
-				)
-			else:
-				out[i] = self.moving_towards(
-									self.display_fourier[i],
-									self.operating_fourier[i],
-									(self.operating_fourier[i] - self.display_fourier[i]) *
-										elapsed * self.smoothing_factor_fast
-				)
-		return out
-
-	def do_render(self, surface, operatingdim, heights, percentcomp):
-		if(self.dest_dim != surface.get_size()):
-			self.recalculate_size(surface.get_size())
-
-		surface.blit(self.scaled_art, (0,0));
-
-		verts = self.generate_verts(heights, self.line_height, surface.get_width(), True)
-
-		pygame.gfxdraw.filled_polygon(
-			surface,
-			verts,
-			self.color)
-		
-		pygame.gfxdraw.aapolygon(
-			surface,
-			verts,
-			self.color)
-		
-		#TODO masking colors
-
-		pygame.gfxdraw.box(
-			surface,
-			pygame.Rect(
-				self.padding_external,
-				self.line_height - self.padding_internal - 3,
-				operatingdim[0] * percentcomp,
-				3
-			),
-			self.color
-		)
-
-		if(self.old_timestring != self.get_timestring(percentcomp)):
-			self.label_time = self.font_small.render(self.get_timestring(percentcomp), 1, self.bkgColor)
-
-		surface.blit(self.label_time,
-			(surface.get_width()-109, self.line_height-self.font_big.get_height()-8))
-		surface.blit(self.label_alltime,
-			(surface.get_width()-65, self.line_height-self.font_big.get_height()-8))
+			self.parent.colorMain)
 
 
 class VisualizerSet:
-	def __init__(*visualizers):
-		self.visualizers = visualizers
+	fourier_resolution = 10
 
-	def render(self, surface, percentcomp):		
-		surface.fill(constants.bkgColor)
-		for visualizer in sorted(self.visualizers, key=lambda v: v.sortdepth)
-			v.render_to_screen(self, surface, percentcomp)
+	colorMain = pygame.Color(32,32,32)
+	colorSub = pygame.Color(24,24,24)
+	colorBkg = pygame.Color(16,16,16)
 
+	padding_external = 50
+	padding_internal = 5
 
-def makeVeryTrendyVisualizer():
-	return VisualizerSet(
+	resolution = (800,450)
+
+	font_big = None
+	font_small = None
+
+	def __init__(self, *vargs):
+		self.visualizers = vargs
+		for v in self.visualizers:
+			v.parent = self
+
+	def initial_bake(self):
+		self.operatingdim = (self.resolution[0]-self.padding_external*2, self.resolution[1]-self.padding_external*2)
+
+		for v in self.visualizers:
+			v.initial_bake()
+
+	def render_to_screen(self, surface, signal, percentcomp, elapsed):	
+		surface.fill(self.colorBkg)
+		for v in sorted(self.visualizers, key=lambda v: v.sortdepth):
+			v.render_to_screen(surface, signal, percentcomp, elapsed)
+
+def make_trendy_visualizer(totaltime):
+	v = VisualizerSet(
 				BackgroundImageVisualizer("./dunes.jpg"),
-				HlineVisualizer(constants.MIDDLE, )
+				HlineVisualizer(SECOND_THIRD, -8),
+				TextVisualizer("THE HIKIKORMORI BLUES","SENPAIS IN PARADISE",LEFT, MIDDLE),
+				TimeVisualizer(RIGHT, SECOND_THIRD, totaltime),
+				BulbEqualizerAA(SECOND_THIRD, False, False)
 				)
+	v.padding_external = 0
+	v.colorMain = pygame.Color(255,255,255,50)
+	v.colorSub = pygame.Color(255,255,255,30)
+	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
+	v.font_small = pygame.font.Font("./Quicksand_light.ttf",20)
+
+	return v
 
 
 def printHelpString():
@@ -495,58 +462,42 @@ def get_visualizers_from_options():
 
 if __name__ == "__main__":
 	pygame.init()
-	constants.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
-	constants.font_small = pygame.font.Font("./Quicksand_light.ttf",20)
-	#visualizers = get_visualizers_from_options()
 	
 	finish_time=5
-
-	
-	visualizers = [VeryTrendyVisualizer(
-		"SONG TITLE",
-		"ARTIST NAME",
-		pygame.image.load("dunes.jpg"),
-		pygame.font.Font("./Quicksand_regular.ttf",20),
-		pygame.font.Font("./Quicksand_light.ttf",20),
-		finish_time
-		)]
-	
-
-	window = pygame.display.set_mode((800,450))
-	
-
-	running=True
-
 	fps = 60
-	length = 10.0
+	length = 20.0
 
+	visualizerSet = make_trendy_visualizer(length)
+	visualizerSet.initial_bake()
+
+	window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
+	
 	elapsed = 1.0/fps
 	sumelapsed = 0.0
-	lastupdate = time.time()
+	initialtime = time.time()
+	lastupdate = initialtime
 	while(sumelapsed <= length+finish_time):
 		if(sumelapsed < length):
-			signal = make_random_noise()
+			signal = make_random_noise(visualizerSet.fourier_resolution)
 		else:
-			signal = [0.0]*fourier_resolution
-		for visualizer in visualizers:
-			visualizer.render_to_screen(window, signal, min(1, sumelapsed/length), elapsed)
+			signal = [0.0]*visualizerSet.fourier_resolution
+
+		visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
+
 		pygame.display.flip()
 
+		#preemptive close
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				pygame.quit()
-				running=False
-
-		if (not running):
-			break
+				sys.exit(0)
 
 		elapsed = time.time()-lastupdate
+
 		#maintain fps limit on high end machines
 		while(elapsed<1.0/fps):
 			time.sleep(1.0/fps -elapsed)
 			elapsed = time.time()-lastupdate
 
 		lastupdate = time.time()
-		sumelapsed += elapsed
-
-	pygame.quit()
+		sumelapsed = lastupdate-initialtime
