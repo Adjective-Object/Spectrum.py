@@ -6,10 +6,22 @@ import numpy
 def ezplot(data):
     return into_bins(remove_negative(generate_spectrum(data)), 10)
 
-def generate_spectrum(data):
+def kill_infinities(data):
+    for i in range(len(data)):
+        if not numpy.isfinite(data[i]):
+            data[i] = 0
+    return data
+
+def generate_spectrum(data, stereo=True):
     data = numpy.fromstring(data, 'Int16')
-    left = data[::2]
-    right = data[1::2]
+    left = []
+    right = []
+    if (stereo):
+        left = data[::2]
+        right = data[1::2]
+    else:
+        left = data
+        right = data
     left = left * scipy.signal.flattop(len(left))
     right = right * scipy.signal.flattop(len(right))
     left_fft = numpy.fft.fft(left)
@@ -17,6 +29,7 @@ def generate_spectrum(data):
     left_fft = 20 * numpy.log10(numpy.absolute(left_fft))
     right_fft = 20 * numpy.log10(numpy.absolute(right_fft))
     spectrum = numpy.add(left_fft, right_fft)
+    spectrum = kill_infinities(spectrum)
     return spectrum
 
 def remove_negative(spectrum):
