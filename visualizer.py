@@ -122,12 +122,12 @@ class TimeVisualizer(Visualizer):
 		self.offsety=offsety
 
 	def initial_bake(self):
+		self.song_length = self.parent.song_length
+
 		self.label_time = self.parent.font_small.render("0:00", 1, self.parent.colorSub)
 		self.label_alltime = self.parent.font_small.render("/"+self.get_timestring(1), 1, self.parent.colorMain)
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 		self.baked_location = (self.baked_location[0]+self.offsetx, self.baked_location[1]+self.offsety)
-
-		self.song_length = self.parent.song_length
 
 	def get_timestring(self, percentcomp):
 		n = (percentcomp * self.song_length)
@@ -355,6 +355,8 @@ class BulbEqualizerAA(BulbEqualizer):
 
 class VisualizerSet:
 	fourier_resolution = 10
+
+	to_file = False
 
 	colorMain = pygame.Color(64,64,64)
 	colorSub = pygame.Color(32,32,32)

@@ -6,13 +6,21 @@ import getopt
 import sys
 import threading
 
+import mutagen.mp3 #lib to deal with metadata
+
 import player
 import spectrum
 
-#list of values 0.0 to 1.0
-def make_random_noise(resolution):
-    return [random.random() *(resolution-i)/resolution 
-            for i in range(resolution)]
+import wave
+import contextlib
+
+def wav_filelength(fname):
+    with contextlib.closing(wave.open(fname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        return duration
+
 
 def parseColor(string):
     s = string.replace("(","").replace(")","").replace(" ","").split(",")
@@ -82,13 +90,13 @@ def get_location(s, cmd, argnam):
 
 
 def printHelpString():
-    print "Usage is visualize [OPTION...] SONGIN FILEOUT"
-    print " -f, --fresolution=f           sets the resolution of the fourier"
+    print "Usage is python MNEVisualize.py [OPTION...] PATH_TO_SONG"
+    print " -q, --fresolution=f           sets the resolution of the fourier"
     print "                                    transform. Defaults to 10."
     print " -r, --resolution=AxB          set the output resoltuion AxB,"
     print "                                    Defaults to 1920x1080"
-    print " -p, --preview=false,f         display or do not display a preview"
-    print "                                    while rendering. defaults to true"
+    print " -f, --file=PATH               render images to directory. Disables"
+    print "                                    normal window display"
     print " -x, --expadding[=###]         specify the external padding of the"
     print "                                    visualizer. Position is judged "
     print "                                    relative to external padding."
@@ -139,7 +147,7 @@ def printHelpString():
     print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
     print "      <wireframe> defaults to false, <fatness> defaults to 1.4"
     print
-    print "trendy:"
+    print "trendy <title> <artist> <backgroundImage>:"
     print "      preconfigured player with WOW SO TRENDY aesthetic"
     print
     print "minimalist:"
@@ -217,7 +225,7 @@ def add_elements(nset, declarations):
             nset = visualizer.make_minimalist_eq(nset)
         elif(s[0].lower() == "trendy <title> <artist> <backgroundImage>"):
             check_num_args("trendy",s,3)
-            nset = visualizer.make_minimalist_eq(s[0], s[1], s[2])
+            nset = visualizer.make_trendy_visualizer(s[0], s[1], s[2])
         else:
             print("cannot parse declaration %s"%(s))
 
@@ -226,8 +234,8 @@ def get_visualizer_from_args():
         newset = visualizer.VisualizerSet()
         args, postargs = getopt.getopt(
             sys.argv[1:],
-            "f:r:p:x:m:n:s:b:e:",
-            ["fresolution=", "resolution=", "preview=", "expandding=", "inpadding=",
+            "q:r:f:x:m:n:s:b:e:",
+            ["fresolution=", "resolution=", "file=", "expandding=", "inpadding=",
                 "colormain=", "colorsub=", "colorback=", "elements="
             ]
         )
@@ -238,15 +246,15 @@ def get_visualizer_from_args():
                 sys.exit(0)
         #look for env stuff
         for arg in args:
-            if arg[0] == "-f" or arg[0] == "--fresolution":
+            if arg[0] == "-q" or arg[0] == "--fresolution":
                 newset.fourier_resolution = int(arg[1])
             elif arg[0] == "-r" or arg[0] == "--resolution":
                 split = arg[1].replace(")","").replace("(","").replace(" ","").split("x")
                 newset.resolution = (int(split[0]), int(split[1]))
             elif arg[0] == "-n" or arg[0] == "--inpadding":
                 newset.padding_internal = float(arg[1])
-            elif arg[0] == "-p" or arg[0] == "--preview":
-                print("preview option not implemented")
+            elif arg[0] == "-f" or arg[0] == "--file":
+                newset.to_file = True
             elif arg[0] == "-x" or arg[0] == "--expadding":
                 newset.padding_external = float(arg[1])
             elif arg[0] == "-m" or arg[0] == "--colormain":
@@ -289,10 +297,15 @@ if __name__ == "__main__":
     
     visualizerSet, postargs = get_visualizer_from_args()
     
+    length = 0
+
     if (postargs[0].split(".")[-1].lower() == "mp3"):
-        mneplayer = player.Player(sys.argv[1], player.Player.TYPE_MP3)
+        mneplayer = player.Player( postargs[0], player.Player.TYPE_MP3)
+        audio = mutagen.mp3.MP3(postargs[0])
+        length = audio.info.length
     else:
-        mneplayer = player.Player(sys.argv[1], player.Player.TYPE_WAV)
+        mneplayer = player.Player( postargs[0], player.Player.TYPE_WAV)
+        length = wav_filelength(postargs[0])
     playerthread = PlayerThread(mneplayer)    
     playerthread.start()
 
@@ -301,17 +314,19 @@ if __name__ == "__main__":
 
     #visualizerSet = visualizer.make_minimalist_eq()
     #visualizerSet = visualizer.make_trendy_visualizer()
+    #TODO maxtim
+    visualizerSet.song_length=length
     visualizerSet.initial_bake()
 
     print visualizerSet.visualizers
     
     data = mneplayer.get_data()
 
+    pygame.display.set_caption("Live Preview")
     window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
-    
+
     elapsed = 1.0/fps
     sumelapsed = 0.0
-    length=100
     initialtime = time.time()
     lastupdate = initialtime
     try:
