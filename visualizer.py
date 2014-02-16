@@ -10,7 +10,7 @@ BOTTOM = 12
 FIRST_THIRD= 4
 SECOND_THIRD = 8
 FIRST_QUARTER= 3
-SECOND_QUARTER = 9
+THIRD_QUARTER = 9
 
 
 def ARBITRARY_FRACTION(x):
@@ -113,16 +113,19 @@ class HlineVisualizer(Visualizer):
 
 
 class TimeVisualizer(Visualizer):
-	def __init__(self, xpos, ypos):
+	def __init__(self, xpos, ypos, offsetx, offsety):
 		Visualizer.__init__(self)
 		self.song_length = 0
 		self.old_timestring = "0:00"
 		self.location = (xpos, ypos)
+		self.offsetx=offsetx
+		self.offsety=offsety
 
 	def initial_bake(self):
 		self.label_time = self.parent.font_small.render("0:00", 1, self.parent.colorSub)
 		self.label_alltime = self.parent.font_small.render("/"+self.get_timestring(1), 1, self.parent.colorMain)
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
+		self.baked_location = (self.baked_location[0]+self.offsetx, self.baked_location[1]+self.offsety)
 
 		self.song_length = self.parent.song_length
 
@@ -176,7 +179,7 @@ class Equalizer(Visualizer):
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor * 10
+						elapsed * self.smoothing_factor * 8.0
 			) ) for i in range(self.parent.fourier_resolution)]
 
 		if self.smoothing_factor != -1 else self.operating_fourier)
@@ -201,14 +204,15 @@ class BarEqualizer(Equalizer):
 
 		for x in range(self.parent.fourier_resolution):
 			h = self.parent.operatingdim[1]/2 * self.display_fourier[x]
+			expand = -h if self.direction else h
 			pygame.draw.rect(
 				surface,
 				self.parent.colorMain,
 				pygame.Rect(
 					self.baked_location[0]+(rectwidth + self.parent.padding_internal)*x,
-					self.baked_location[1]+self.offsety - (direction*h + (not direction) *h),
+					self.baked_location[1],
 					rectwidth,
-					(direction*h + (not direction) *h)
+					expand
 				)
 			)
 
@@ -234,7 +238,7 @@ class PolygonEqualizer(Equalizer):
 			off = operatingdim[1]/2 * self.display_fourier[x]
 			poly.append( (
 				self.parent.padding_external+ w*x + w/2,
-				self.baked_location[1] - off*direction + off * (not direction)
+				self.baked_location[1] - off*self.direction + off * (not self.direction)
 				)
 			)
 		pygame.draw.polygon(surface, self.parent.colorMain, poly)      
@@ -364,6 +368,8 @@ class VisualizerSet:
 	font_big = None
 	font_small = None
 
+	song_length = 0
+
 	def __init__(self, *vargs):
 		self.visualizers = []+list(vargs)
 		for v in self.visualizers:
@@ -388,15 +394,12 @@ class VisualizerSet:
 		for v in sorted(self.visualizers, key=lambda v: v.sortdepth):
 			v.render_to_screen(surface, signal, percentcomp, elapsed)
 
-def make_trendy_visualizer(totaltime):
-	v = VisualizerSet(
-				BackgroundImageVisualizer("./dunes.jpg"),
-				HlineVisualizer(SECOND_THIRD, -8),
-				TextVisualizer("THE HIKIKORMORI BLUES","SENPAIS IN PARADISE",LEFT, MIDDLE),
-				TimeVisualizer(RIGHT, SECOND_THIRD),
-				BulbEqualizerAA(SECOND_THIRD, 0, False, False)
-				)
-	v.song_length = totaltime
+def make_trendy_visualizer(v, title="TITLE", artist="ARTIST", image="./dunes.jpg"):
+	v.add( BackgroundImageVisualizer(image))
+	v.add( HlineVisualizer(SECOND_THIRD, -8))
+	v.add( TextVisualizer(title, artist,LEFT, MIDDLE))
+	v.add( TimeVisualizer(RIGHT, SECOND_THIRD))
+	v.add( BulbEqualizerAA(SECOND_THIRD, 0, False, False))
 	v.padding_external = 0
 	v.colorMain = pygame.Color(255,255,255,50)
 	v.colorSub = pygame.Color(255,255,255,30)
@@ -405,12 +408,9 @@ def make_trendy_visualizer(totaltime):
 
 	return v
 
-def make_minimalist_eq(totaltime):
-	v = VisualizerSet(
-				TimeVisualizer(RIGHT, MIDDLE, totaltime),
-				BarEqualizer(SECOND_THIRD, 0)
-				)
-	v.song_length = totaltime
+def make_minimalist_eq(v):
+	v.add(TimeVisualizer(RIGHT, THIRD_QUARTER, 0, 50))
+	v.add(BarEqualizer(THIRD_QUARTER, 0))
 	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
 	v.font_small = pygame.font.Font("./Quicksand_regular.ttf",20)
 	return v

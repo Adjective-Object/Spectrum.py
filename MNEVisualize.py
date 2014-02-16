@@ -6,8 +6,8 @@ import getopt
 import sys
 import threading
 
-#import player
-#import spectrum
+import player
+import spectrum
 
 #list of values 0.0 to 1.0
 def make_random_noise(resolution):
@@ -123,8 +123,9 @@ def printHelpString():
     print " songinf <hlocation> <vlocation> <title> <artist>:"
     print "       Displays <title> \\n <artist> at specified location"
     print
-    print " time <xlocation> <ylocation>:"
+    print " time <xlocation> <ylocation> <xoffset> <yoffset>:"
     print "       Displays the current time in 0:00/0:00 at specified location"
+    print "       <xoffset> and <yoffset> default to 0"
     print
     print " bareq <xlocation> <yoffset> <direction>:"
     print "      bar-based eqalizer at vertical position <vlocation>,"
@@ -137,7 +138,12 @@ def printHelpString():
     print " bulbeq <ylocation> <yoffset> <direction> <wireframe> <fatness>:"
     print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
     print "      <wireframe> defaults to false, <fatness> defaults to 1.4"
-
+    print
+    print "trendy:"
+    print "      preconfigured player with WOW SO TRENDY aesthetic"
+    print
+    print "minimalist:"
+    print "      preconfigured player with minimalist aesthetic"
 def check_num_args(funcname, s, num):
     if len(s)< num:
         print "error: %s expecting %s args got %s"%(funcname, num, len(s))
@@ -160,9 +166,15 @@ def add_elements(nset, declarations):
             nset.add(visualizer.BackgroundImageVisualizer(s[1]))
         elif(s[0].lower() == "time"):
             check_num_args("hbar",s,2)
+            if(len(s)==3):
+                s.append("0")
+            if(len(s)==4):
+                s.append("0")
             nset.add(visualizer.TimeVisualizer(
                 get_location(s[1],"time","<xlocation>"),
-                get_location(s[2],"time","<ylocation>"))
+                get_location(s[2],"time","<ylocation>"),
+                get_int(s[2],"time","<yoffset>"),
+                get_int(s[2],"time","<yoffset>"))
             )
         elif(s[0].lower() == "songinf"):
             check_num_args("songinf",s,4)
@@ -201,11 +213,17 @@ def add_elements(nset, declarations):
                 get_boolean(s[4], "bulbeq", "<wireframe>"),
                 get_float(s[5], "bulbeq", "<fatness>"))
             )
+        elif(s[0].lower() == "minimalist"):
+            nset = visualizer.make_minimalist_eq(nset)
+        elif(s[0].lower() == "trendy <title> <artist> <backgroundImage>"):
+            check_num_args("trendy",s,3)
+            nset = visualizer.make_minimalist_eq(s[0], s[1], s[2])
         else:
             print("cannot parse declaration %s"%(s))
 
-def get_visualizer_from_args(totaltime):
+def get_visualizer_from_args():
     try:
+        newset = visualizer.VisualizerSet()
         args, postargs = getopt.getopt(
             sys.argv[1:],
             "f:r:p:x:m:n:s:b:e:",
@@ -218,7 +236,6 @@ def get_visualizer_from_args(totaltime):
             if arg[0]=="-h":
                 printHelpString()
                 sys.exit(0)
-        newset = visualizer.VisualizerSet()
         #look for env stuff
         for arg in args:
             if arg[0] == "-f" or arg[0] == "--fresolution":
@@ -243,8 +260,10 @@ def get_visualizer_from_args(totaltime):
                 add_elements(newset, s)
             else:
                 print("Unknown Arg %s"%(arg[0]))
-        newset.song_length = totaltime
-        return newset
+        if(len(newset.visualizers)==0):
+            return visualizer.make_minimalist_eq(newset), postargs
+
+        return newset, postargs
     except getopt.GetoptError as e:
         print("error parsing argv")
         print(e)
@@ -268,22 +287,20 @@ class PlayerThread(threading.Thread):
 if __name__ == "__main__":
     pygame.init()
     
-    mneplayer = ''
-    if (sys.argv[1].split(".")[-1].lower() == "mp3"):
+    visualizerSet, postargs = get_visualizer_from_args()
+    
+    if (postargs[0].split(".")[-1].lower() == "mp3"):
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_MP3)
     else:
         mneplayer = player.Player(sys.argv[1], player.Player.TYPE_WAV)
-    playerthread = PlayerThread(mneplayer)
+    playerthread = PlayerThread(mneplayer)    
     playerthread.start()
-   
-    
+
     finish_time=5
     fps = 60
-    length = 20.0
 
-    visualizerSet = get_visualizer_from_args(length)
-    #visualizerSet = visualizer.make_minimalist_eq(length)
-    #visualizerSet = visualizer.make_trendy_visualizer(length)
+    #visualizerSet = visualizer.make_minimalist_eq()
+    #visualizerSet = visualizer.make_trendy_visualizer()
     visualizerSet.initial_bake()
 
     print visualizerSet.visualizers
@@ -294,30 +311,36 @@ if __name__ == "__main__":
     
     elapsed = 1.0/fps
     sumelapsed = 0.0
+    length=100
     initialtime = time.time()
     lastupdate = initialtime
-    while(playerthread.live()):
-        signal = spectrum.generate_spectrum(mneplayer.get_data())
-        signal = spectrum.remove_negative(signal)
-        signal = spectrum.into_bins(signal, 10)
-        visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
+    try:
+        while(playerthread.live()):
+            signal = spectrum.generate_spectrum(mneplayer.get_data())
+            signal = spectrum.remove_negative(signal)
+            signal = spectrum.into_bins(signal, 10)
+            visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
 
-        pygame.display.flip()
+            pygame.display.flip()
 
-        #preemptive close
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                playerthread.kill()
-                sys.exit(0)
+            #preemptive close
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    playerthread.kill()
+                    sys.exit(0)
 
-        elapsed = time.time()-lastupdate
-        
-        #maintain fps limit on high end machines
-        while(elapsed<1.0/fps):
-            time.sleep(1.0/fps -elapsed)
             elapsed = time.time()-lastupdate
+            
+            #maintain fps limit on high end machines
+            while(elapsed<1.0/fps):
+                time.sleep(1.0/fps -elapsed)
+                elapsed = time.time()-lastupdate
 
-        lastupdate = time.time()
-        sumelapsed = lastupdate-initialtime
-    
+            lastupdate = time.time()
+            sumelapsed = lastupdate-initialtime
+    except Exception as e:
+        print e
+        playerthread.kill()
+        pygame.exit()
+        sys.exit()
