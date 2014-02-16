@@ -68,15 +68,18 @@ class BackgroundImageVisualizer(Visualizer):
 
 
 class TextVisualizer(Visualizer):
-	def __init__(self, location_x, location_y, tracktitle, artistname):
+	def __init__(self, tracktitle, artistname, location_x, location_y, offsetx, offsety):
 		Visualizer.__init__(self)
 		self.track_title, self.artist_name = tracktitle, artistname
 		self.location = (location_x, location_y)
+		self.offset = (offsetx, offsety) 
 
-	def initial_bake(self):		
+	def initial_bake(self):
+		print(self.artist_name, self.track_title)
 		self.label_artist = self.parent.font_big.render(self.artist_name, 1, self.parent.colorMain)
 		self.label_song = self.parent.font_small.render(self.track_title, 1, self.parent.colorSub)
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
+		self.baked_location = (self.baked_location[0]+self.offset[0], self.baked_location[1]+self.offset[1])
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		surface.blit(self.label_song, (self.baked_location[0], self.baked_location[1]))
@@ -113,7 +116,7 @@ class HlineVisualizer(Visualizer):
 
 
 class TimeVisualizer(Visualizer):
-	def __init__(self, xpos, ypos, offsetx, offsety):
+	def __init__(self, xpos, ypos, offsetx=0, offsety=0):
 		Visualizer.__init__(self)
 		self.song_length = 0
 		self.old_timestring = "0:00"
@@ -319,8 +322,8 @@ class BulbEqualizer(PolygonEqualizer):
 class BulbEqualizerAA(BulbEqualizer):
 
 	def __init__(self, location_y, offsety=0, orientation=True, wireframe = False, 
-			smoothing_factor=1, input_output_relationship=lambda self, i, elapsed: i):
-		BulbEqualizer.__init__(self, location_y, offsety, orientation, smoothing_factor, input_output_relationship)
+			smoothing_factor=2):
+		BulbEqualizer.__init__(self, location_y, offsety, orientation, smoothing_factor)
 		self.wireframe=wireframe
 
 	def initial_bake(self):
@@ -396,10 +399,11 @@ class VisualizerSet:
 		for v in sorted(self.visualizers, key=lambda v: v.sortdepth):
 			v.render_to_screen(surface, signal, percentcomp, elapsed)
 
-def make_trendy_visualizer(v, title="TITLE", artist="ARTIST", image="./dunes.jpg"):
+def make_trendy_visualizer(v, image="./dunes.jpg", title="TITLE", artist="ARTIST"):
 	v.add( BackgroundImageVisualizer(image))
 	v.add( HlineVisualizer(SECOND_THIRD, -8))
-	v.add( TextVisualizer(title, artist,LEFT, MIDDLE))
+	print (title,artist)
+	v.add( TextVisualizer(title, artist,LEFT, MIDDLE, 20, 0))
 	v.add( TimeVisualizer(RIGHT, SECOND_THIRD))
 	v.add( BulbEqualizerAA(SECOND_THIRD, 0, False, False))
 	v.padding_external = 0
