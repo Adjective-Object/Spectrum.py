@@ -113,9 +113,9 @@ class HlineVisualizer(Visualizer):
 
 
 class TimeVisualizer(Visualizer):
-	def __init__(self, xpos, ypos, totaltime):
+	def __init__(self, xpos, ypos):
 		Visualizer.__init__(self)
-		self.song_length = totaltime
+		self.song_length = 0
 		self.old_timestring = "0:00"
 		self.location = (xpos, ypos)
 
@@ -123,6 +123,8 @@ class TimeVisualizer(Visualizer):
 		self.label_time = self.parent.font_small.render("0:00", 1, self.parent.colorSub)
 		self.label_alltime = self.parent.font_small.render("/"+self.get_timestring(1), 1, self.parent.colorMain)
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
+
+		self.song_length = self.parent.song_length
 
 	def get_timestring(self, percentcomp):
 		n = (percentcomp * self.song_length)
@@ -145,12 +147,19 @@ class Equalizer(Visualizer):
 			input_output_relationship=lambda self, i, elapsed: i,
 			):
 		Visualizer.__init__(self)
+		self.location_y = location_y
+		self.offsety = offset_y
+		self.direction = direction
+
 		self.smoothing_factor = smoothing_factor
 		self.input_output_relationship = input_output_relationship
 
 	def initial_bake(self):
 		self.display_fourier = [0]*self.parent.fourier_resolution
 		self.operating_fourier = [0]*self.parent.fourier_resolution
+
+		self.baked_location = self.get_baked_coords(LEFT,self.location_y)
+
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		self.operating_fourier = self.input_output_relationship( self, fourier, elapsed)
@@ -178,15 +187,12 @@ class Equalizer(Visualizer):
 
 
 class BarEqualizer(Equalizer):
-	def __init__(self, location_y, offset_y):
-		Equalizer.__init__(self,
-			1, lambda self, f, elapsed: f)
-		self.location_y = location_y
-		self.offsety = offset_y
-
+	def __init__(self, location_y, offset_y, direction=True):
+		Equalizer.__init__(self, location_y, offsety, direction,
+			2, lambda self, f, elapsed: f)
+		
 	def initial_bake(self):
 		Equalizer.initial_bake(self)
-		self.baked_location = self.get_baked_coords(LEFT,self.location_y)
 
 	def render(self, surface):
 		rectwidth = (
@@ -195,49 +201,45 @@ class BarEqualizer(Equalizer):
 			) / self.parent.fourier_resolution)
 
 		for x in range(self.parent.fourier_resolution):
+			h = self.parent.operatingdim[1]/2 * self.display_fourier[x]
 			pygame.draw.rect(
 				surface,
 				self.parent.colorMain,
 				pygame.Rect(
 					self.baked_location[0]+(rectwidth + self.parent.padding_internal)*x,
-					self.baked_location[1]+self.offsety-self.parent.operatingdim[1]/2 * self.display_fourier[x],
+					self.baked_location[1]+self.offsety - (direction*h + (not direction) *h),
 					rectwidth,
-					self.parent.operatingdim[1]/2 * self.display_fourier[x]
+					(direction*h + (not direction) *h)
 				)
 			)
 
 
 class PolygonEqualizer(Equalizer):
-	def __init__(self, smoothing_factor=1, input_output_relationship=lambda self, i, elapsed: i):
-		Equalizer.__init__( self, smoothing_factor, input_output_relationship)
+	def __init__(self, location_y, offset_y, direction,
+					smoothing_factor=2,
+					input_output_relationship=lambda self, i, elapsed: i):
+		Equalizer.__init__( self, location_y, offset_y, direction, 
+							smoothing_factor, input_output_relationship)
 
 	def render(self, surface, percentcomp):
 		operatingdim = (surface.get_width()-self.parent.padding_external*2,
 							surface.get_height()-self.parent.padding_external*2)
 
 		poly = [
-			(self.parent.padding_external + operatingdim[0], surface.get_height()/2),
-			(self.parent.padding_external, surface.get_height()/2)
+			(self.parent.padding_external + operatingdim[0], self.baked_location[1],
+			(self.parent.padding_external, self.baked_location[1]
 		]
+
 		w = operatingdim[0]/(self.parent.fourier_resolution*1.0)
 		for x in range(self.parent.fourier_resolution):
+			off = operatingdim[1]/2 * self.display_fourier[x]
 			poly.append( (
 				self.parent.padding_external+ w*x + w/2,
-				surface.get_height()/2 - operatingdim[1]/2 * self.display_fourier[x]
+				self.baked_location[1] - off*direction + off * not (direction)
 				)
 			)
 		pygame.draw.polygon(surface, self.parent.colorMain, poly)      
-
-		pygame.draw.rect(
-			surface,
-			self.parent.colorMain,
-			pygame.Rect(
-				self.parent.padding_external,
-				surface.get_height()/2 + self.parent.padding_internal,
-				operatingdim[0] * percentcomp,
-				2
-			)
-		)
+	)
 
 
 class ThresholdPolygonEqualizer(PolygonEqualizer):
@@ -268,10 +270,12 @@ class ThresholdPolygonEqualizer(PolygonEqualizer):
 
 
 class BulbEqualizer(PolygonEqualizer):
-	def __init__(self, smoothing_factor=1, orientation=True):
-		PolygonEqualizer.__init__(self, smoothing_factor) 
+	def __init__(self, location_y, offset_y, orientation=True, smoothing_factor=1, fatness_factor=1.4, hscale = 20.0):
+		PolygonEqualizer.__init__(self, location_y, offset_y, orientation, smoothing_factor) 
 		self.hscale = 20.0
-		self.fatness_factor = 1.4
+		self.fatness_factor = fatness_factor
+		self.location = (LEFT, location_y)
+		self.offsetty = offset_y
 
 	def calc_norm(self, relativex):
 		#print(relativex, (relativex)**2 /2)
@@ -312,16 +316,13 @@ class BulbEqualizer(PolygonEqualizer):
 
 class BulbEqualizerAA(BulbEqualizer):
 
-	def __init__(self, location_y, wireframe = False, orientation=True,
-			smoothing_factor=1,  input_output_relationship=lambda self, i, elapsed: i):
-		BulbEqualizer.__init__(self, smoothing_factor, input_output_relationship)
+	def __init__(self, location_y, offsety=0, orientation=True, wireframe = False, 
+			smoothing_factor=1, input_output_relationship=lambda self, i, elapsed: i):
+		BulbEqualizer.__init__(self, location_y, offsety, orientation, smoothing_factor, input_output_relationship)
 		self.wireframe=wireframe
-		self.location = (LEFT, location_y)
-		self.orientation = orientation;
 
 	def initial_bake(self):
 		super(BulbEqualizerAA, self).initial_bake()
-		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
 
 	def generate_verts(self, heights, line, width, flipped=False):
 		verts = [(width-self.parent.padding_external, line),
@@ -336,7 +337,7 @@ class BulbEqualizerAA(BulbEqualizer):
 		return verts
 
 	def do_render(self, surface, operatingdim, heights):
-		verts = self.generate_verts(heights, self.baked_location[1], surface.get_width(), not self.orientation)
+		verts = self.generate_verts(heights, self.baked_location[1], surface.get_width(), not self.direction)
 
 		if( not self.wireframe):
 			pygame.gfxdraw.filled_polygon(
@@ -390,9 +391,10 @@ def make_trendy_visualizer(totaltime):
 				BackgroundImageVisualizer("./dunes.jpg"),
 				HlineVisualizer(SECOND_THIRD, -8),
 				TextVisualizer("THE HIKIKORMORI BLUES","SENPAIS IN PARADISE",LEFT, MIDDLE),
-				TimeVisualizer(RIGHT, SECOND_THIRD, totaltime),
-				BulbEqualizerAA(SECOND_THIRD, False, False)
+				TimeVisualizer(RIGHT, SECOND_THIRD),
+				BulbEqualizerAA(SECOND_THIRD, 0, False, False)
 				)
+	v.song_length = totaltime
 	v.padding_external = 0
 	v.colorMain = pygame.Color(255,255,255,50)
 	v.colorSub = pygame.Color(255,255,255,30)
@@ -406,6 +408,7 @@ def make_minimalist_eq(totaltime):
 				TimeVisualizer(RIGHT, MIDDLE, totaltime),
 				BarEqualizer(SECOND_THIRD, 0)
 				)
+	v.song_length = totaltime
 	v.font_big = pygame.font.Font("./Quicksand_regular.ttf",20)
 	v.font_small = pygame.font.Font("./Quicksand_regular.ttf",20)
 	return v

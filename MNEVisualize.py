@@ -13,7 +13,7 @@ def make_random_noise(resolution):
             for i in range(resolution)]
 
 def parseColor(string):
-    s = string.remove("(").remove(")").remove(" ").split(",")
+    s = string.replace("(","").replace(")","").replace(" ","").split(",")
     if len(s) == 3:
         return pygame.Color(int(s[0]), int(s[1]), int(s[2]))
     elif len(s) == 4:
@@ -21,6 +21,56 @@ def parseColor(string):
     else:
         print "Improperly specified color argument. Defaulting to Black"
         return pygame.Color(0,0,0)
+
+
+def get_boolean(s, cmd, argnum):
+    if s=="true" or s=="t" or s=="1":
+        return True
+    else if s=="false" or s=="f" or s=="0"
+        return False
+    print "Improperly specified boolean argument %s in command %s"%(argnum, cmd)
+    sys.exit(1)
+
+def get_float(s, cmd, argnum):
+    try:
+        return int(s)
+    except Exception:
+        print "Improperly specified float argument %s in command %s"%(argnum, cmd)
+        sys.exit(1)
+
+def get_location(s, cmd, argnam):
+    if(s.lower() == "bottom"):
+        return visualizer.BOTTOM
+    else if(s.lower() == "middle"):
+        return visualizer.MIDDLE
+    else if(s.lower() == "top"):
+        return visualizer.TOP
+    else if(s.lower() == "left"):
+        return visualizer.LEFT
+    else if(s.lower() == "right"):
+        return visualizer.RIGHT
+
+    else if(s.lower() == "first-third" or s.lower() == "first_third" or
+            s == "1/3"):
+        return visualizer.FIRST_THIRD
+    else if(s.lower() == "firstthird" or s.lower() == "second_third" or
+            s == "2/3"):
+        return visualizer.SECOND_THIRD
+
+    else if(s.lower() == "first-quarter" or s.lower() == "first_quarter" or
+            s == "1/4"):
+        return visualizer.FIRST_QUARTER
+    else if(s.lower() == "first_quarter" or s.lower() == "third_quarter" or
+            s == "3/4"):
+        return visualizer.SECOND_QUARTER
+
+    else if(s.lower().startswith("arbitrary_")):
+        s = s.lower().replace("arbitrary", "")
+        return visualizer.ARBITRARY_FRACTION(float(s))
+
+    print "Improperly specified argument %s in command %s"%(argnum, cmd)
+    system.exit(1)
+
 
 def printHelpString():
     print "Usage is visualize [OPTION...] SONGIN FILEOUT"
@@ -64,27 +114,72 @@ def printHelpString():
     print " songinf <hlocation> <vlocation> <title> <artist>:"
     print "       Displays <title> \\n <artist> at specified location"
     print
-    print " time <hlocation> <vlocation>:"
+    print " time <xlocation> <ylocation>:"
     print "       Displays the current time in 0:00/0:00 at specified location"
     print
-    print " bareq <vlocation> <voffset> <direction>:"
+    print " bareq <xlocation> <yoffset> <direction>:"
     print "      bar-based eqalizer at vertical position <vlocation>,"
-    print "      verical offset <voffset>, and <direction> (inverted/upright)"
+    print "      verical offset <yoffset>, and <direction> (inverted/upright)"
     print
-    print " polyeq <vlocation> <voffset> <direction>:"
+    print " polyeq <xlocation> <yoffset> <direction>:"
     print "      polygon eq at vertical position <vlocation>,"
-    print "      verical offset <voffset>, and <direction> (inverted/upright)"
+    print "      verical offset <yoffset>, and <direction> (inverted/upright)"
     print
-    print " bulbeq <vlocation> <voffset> <direction> <fatness>:"
+    print " bulbeq <ylocation> <yoffset> <direction> <wireframe> <fatness>:"
     print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
-    print "      fatness defaults to "
+    print "      <wireframe> defaults to false, <fatness> defaults to 1.4"
+
 
 def add_elements(nset, declarations):
     for declaration in declarations:
         s = declaration.split(" ")
-        
+        if(s[0].lower() == "hbar"):
+            nset.add(visualizer.HLineVisualizer(
+                get_location(s[1], "hbar", "<ylocation>"),
+                get_int(s[2], "hbar", "<yoffset>"))
+            )
+        elif(s[0].lower() == "bkgimg"): #TODO graceful image load fail
+            nset.add(visualizer.BackgroundImageVisualizer(s[1]))
+        elif(s[0].lower() == "time"):
+            nset.add(visualizer.TimeVisualizer(
+                get_location(s[1],"time","<xlocation>"),
+                get_location(s[2],"time","<ylocation>"))
+            )
+        elif(s[0].lower() == "songinf"):
+            nset.add(visualizer.TextVisualizer(
+                get_location(s[1],"songinf","<xlocation>"),
+                get_location(s[2],"songinf","<ylocation>"),
+                s[3], s[4])
+            )
+        elif(s[0].lower() == "bareq"):
+            nset.add(visualizer.BarEqualizer(
+                get_location(s[1], "bareq", "<ylocation"),
+                get_int(s[2], "bareq", "<yoffset>"),
+                get_boolean(s[3], "bareq", "<direction>"))
+            )
+        elif(s[0].lower() == "polyeq"):
+            nset.add(visualizer.PolygonEqualizer(
+                get_location(s[1], "polyeq", "<ylocation>"),
+                get_int(s[2], "polyeq","<yoffset>"),
+                get_boolean(s[3], "polyeq", "<direction>"),
+            )
+        elif(s[0].lower() == "bulbeq"):
+            if(len(s)==3):
+                s.append("true")
+            if(len(s)==4):
+                s.append("false")
+            if(len(s)==5:
+                s.append("1.4")
+            
+            nset.add(visualizer.BulbEqualizerAA(
+                get_location(s[1], "bulbeq", "<ylocation>"),
+                get_int(s[2], "bulbeq","<yoffset>"),
+                get_boolean(s[3], "bulbeq", "<direction>"),
+                get_boolean(s[4], "bulbeq", "<wireframe>"),
+                get_float(s[5], "bulbeq, <fatness>"))
+            )
 
-def get_visualizer_from_args():
+def get_visualizer_from_args(totaltime):
     try:
         args, postargs = getopt.getopt(
             sys.argv[1:],
@@ -106,7 +201,7 @@ def get_visualizer_from_args():
                 if arg[0] == "f" or arg[0] == "fresolution=":
                     newset.fourier_resolution = int(arg[1])
                 elif arg[0] == "r" or arg[0] == "resolution=":
-                    split = arg[1].remove(")").remove("(").remove(" ").split("x")
+                    split = arg[1].replace(")","").replace("(","").replace(" ","").split("x")
                     newset.resolution = (int(split[0]), int(split[1]))
                 elif arg[0] == "n" or arg[0] == "inpadding=":
                     newset.padding_internal = float(arg[1])
@@ -124,6 +219,7 @@ def get_visualizer_from_args():
                     addElements(newset, arg[1].split(","))
             else:
                 print("Unknown Arg %s"%(arg[0]))
+        newset.song_length = totaltime
         return newset
     except getopt.GetoptError as e:
         print("error parsing argv")
@@ -160,9 +256,9 @@ if __name__ == "__main__":
     fps = 60
     length = 20.0
 
-    visualizerSet = get_visualizer_from_args()
+    visualizerSet = get_visualizer_from_args(length)
     #visualizerSet = visualizer.make_minimalist_eq(length)
-    #visualizerSet = visualizer.make_trendy_visualizer(0)
+    #visualizerSet = visualizer.make_trendy_visualizer(length)
     visualizerSet.initial_bake()
     data = mneplayer.get_data()
 
