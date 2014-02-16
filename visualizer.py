@@ -366,7 +366,7 @@ class VisualizerSet:
 	font_small = None
 
 	def __init__(self, *vargs):
-		self.visualizers = []+vargs
+		self.visualizers = []+list(vargs)
 		for v in self.visualizers:
 			v.parent = self
 

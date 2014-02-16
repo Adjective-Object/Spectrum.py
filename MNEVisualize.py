@@ -79,6 +79,10 @@ def printHelpString():
     print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
     print "      fatness defaults to "
 
+def add_elements(nset, declarations):
+    for declaration in declarations:
+        s = declaration.split(" ")
+        
 
 def get_visualizer_from_args():
     try:
@@ -94,7 +98,7 @@ def get_visualizer_from_args():
             if arg[0]=="-h":
                 printHelpString()
                 sys.exit(0)
-        newset = VisualizerSet()
+        newset = visualizer.VisualizerSet()
         #look for env stuff
         print args
         for arg in args:
@@ -116,11 +120,11 @@ def get_visualizer_from_args():
                     newset.colorSub = parseColor(arg[1])
                 elif arg[0] == "b" or arg[0] == "colorback":
                     newset.colorBkg = parseColor(arg[1])
-                elif (arg[0] == "e" or arg[0]=="elements=")
-                    pass
+                elif arg[0] == "e" or arg[0]=="elements":
+                    addElements(newset, arg[1].split(","))
             else:
                 print("Unknown Arg %s"%(arg[0]))
-        return interps
+        return newset
     except getopt.GetoptError as e:
         print("error parsing argv")
         print(e)
@@ -156,9 +160,9 @@ if __name__ == "__main__":
     fps = 60
     length = 20.0
 
-    #visualizerSet = get_visualizer_from_args()
+    visualizerSet = get_visualizer_from_args()
     #visualizerSet = visualizer.make_minimalist_eq(length)
-    visualizerSet = visualizer.make_trendy_visualizer(0)
+    #visualizerSet = visualizer.make_trendy_visualizer(0)
     visualizerSet.initial_bake()
     data = mneplayer.get_data()
 
