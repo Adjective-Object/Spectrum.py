@@ -1,7 +1,7 @@
 AudioVisuals
 ============
 
-![Screenshot](/demo.jpg)
+![Screenshot](/demo.png)
 
 A python script to generate simple fourier-transform based visualizations of songs
 
