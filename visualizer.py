@@ -20,11 +20,11 @@ constants.padding_internal = 5
 
 constants.resolution = (800,450)
 
-constants.LEFT = 100
-constants.MIDDLE = 101
-constants.RIGHT = 102
-constants.TOP = 103
-constants.BOTTOM = 104
+constants.LEFT = 0
+constants.MIDDLE = 6
+constants.RIGHT = 12
+constants.TOP = 0
+constants.BOTTOM = 12
 
 constants.font_big = None
 constants.font_small = None
@@ -37,6 +37,7 @@ def make_random_noise():
 	return [random.random() *(constants.fourier_resolution-i)/constants.fourier_resolution 
 			for i in range(constants.fourier_resolution)]
 
+
 def moving_towards(self, start, destination, delta):
 			return (detination if
 				(abs(delta)<abs(destination-start) and (delta>0) != (destination-start>0))
@@ -44,8 +45,35 @@ def moving_towards(self, start, destination, delta):
 
 
 class Visualizer():
+	sortdepth = 1
+
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		pass
+
+
+class BackgroundImageVisualizer(Visualizer):
+
+	def __init__(self, image):
+		self.original_art = display_art
+		self.scaled_art = self.recalcuate_size()
+
+	def recalculate_size(self):
+		self.dest_dim = contents.resolution
+
+		if( self.original_art.get_width()*1.0/self.original_art.get_height()  < self.dest_dim[0]*1.0/self.dest_dim[1]):
+			self.scaled_art = pygame.transform.smoothscale(
+				self.original_art,
+				(self.dest_dim[0], int(1.0*self.dest_dim[0]/self.original_art.get_width() * self.original_art.get_height()))
+			)
+		else:
+			self.scaled_art = pygame.transform.smoothscale(
+				self.original_art,
+				( int(1.0*self.dest_dim[1]/self.original_art.get_height() * self.original_art.get_width() ), self.dest_dim[1])
+			)
+		return self.scaled_art
+
+	def render(self,surface, percentcomp):
+		surface.blit(self.image)
 
 
 class TextVisualizer(Visualizer):
@@ -66,7 +94,31 @@ class TextVisualizer(Visualizer):
 		)
 
 
-class BarVisualizer(Equalizer):
+class HlineVisualizer(Visualizer):
+
+	def __init__(self, vpos, offsety):
+		self.vpos = vpos
+		self.offsety = offsety
+		recalculate_anchor()
+
+	def recalculate_anchor():
+		self.anchor = constants.resolution[1] * 
+				(self.offsety/constants.BOTTOM) + offsety
+
+	def render(self, surface, percentcomp):
+		pygame.gfxdraw.box(
+			surface,
+			pygame.Rect(
+				self.padding_external,
+				self.anchor + self.offsety,
+				operatingdim[0] * percentcomp,
+				3
+			),
+			self.color
+		)
+
+
+class BarEqualizer(Equalizer):
 	def __init__(self):
 		Equalizer.__init__(self,
 			1, lambda self, f, elapsed: f,
@@ -200,15 +252,8 @@ class ThresholdPolygonEqualizer(PolygonEqualizer):
 
 
 class BulbVisualizer(PolygonEqualizer):
-	def __init__(self,
-			smoothing_factor=1,
-			color=pygame.Color(32, 32, 32, 255),
-			bkgColor=pygame.Color(16, 16, 16, 1),
-			padding_external=50,
-			padding_internal=5):
-		PolygonEqualizer.__init__(self, smoothing_factor,
-						color,bkgColor,
-						padding_external,padding_internal) 
+	def __init__(self, smoothing_factor=1):
+		PolygonEqualizer.__init__(self, smoothing_factor) 
 		self.hscale = 20.0
 		self.fatness_factor = 1.4
 
@@ -251,27 +296,11 @@ class BulbVisualizer(PolygonEqualizer):
 					1, heights[x]
 				)
 			)
-		
-		pygame.draw.rect(
-			surface,
-			self.color,
-			pygame.Rect(
-				self.padding_external,
-				surface.get_height()/2 + self.padding_internal,
-				operatingdim[0] * percentcomp,
-				2
-			)
-		)
-
 
 class BulbVisualizerAA(BulbVisualizer):
 
-	def __init__(self, wireframe,
-			color=pygame.Color(32, 32, 32, 255),
-			bkgColor=pygame.Color(16, 16, 16, 1),
-			padding_external=50,
-			padding_internal=5, **kwargs):
-		BulbVisualizer.__init__(self, 2, color,bkgColor,padding_external,padding_internal)
+	def __init__(self, wireframe = False,  smoothing_factor=1):
+		BulbVisualizer.__init__(self, smoothing_factor)
 		self.wireframe=wireframe
 
 	def generate_verts(self, heights, line, width, flipped=False):
@@ -287,9 +316,6 @@ class BulbVisualizerAA(BulbVisualizer):
 		return verts
 
 	def do_render(self, surface, operatingdim, heights, percentcomp):
-
-		surface.fill(self.bkgColor)
-
 		verts = self.generate_verts(heights, surface.get_height()/2, surface.get_width())
 
 		if( not self.wireframe):
@@ -302,17 +328,6 @@ class BulbVisualizerAA(BulbVisualizer):
 			surface,
 			verts,
 			self.color)
-
-		pygame.draw.rect(
-			surface,
-			self.color,
-			pygame.Rect(
-				self.padding_external,
-				surface.get_height()/2 + self.padding_internal,
-				operatingdim[0] * percentcomp,
-				2
-			)
-		)
 
 class VeryTrendyVisualizer(BulbVisualizerAA):
 	def __init__(self, song_title, artist, display_art, display_font_big, display_font_small, song_length_seconds):
@@ -364,22 +379,6 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 				)
 		return out
 
-	def recalculate_size(self, dim):
-		self.dest_dim = dim
-		self.line_height = int(self.dest_dim[1]*0.63)
-
-		if( self.original_art.get_width()*1.0/self.original_art.get_height()  < self.dest_dim[0]*1.0/self.dest_dim[1]):
-			self.scaled_art = pygame.transform.smoothscale(
-				self.original_art,
-				(self.dest_dim[0], int(1.0*self.dest_dim[0]/self.original_art.get_width() * self.original_art.get_height()))
-			)
-		else:
-			self.scaled_art = pygame.transform.smoothscale(
-				self.original_art,
-				( int(1.0*self.dest_dim[1]/self.original_art.get_height() * self.original_art.get_width() ), self.dest_dim[1])
-			)
-
-
 	def do_render(self, surface, operatingdim, heights, percentcomp):
 		if(self.dest_dim != surface.get_size()):
 			self.recalculate_size(surface.get_size())
@@ -419,6 +418,24 @@ class VeryTrendyVisualizer(BulbVisualizerAA):
 		surface.blit(self.label_alltime,
 			(surface.get_width()-65, self.line_height-self.font_big.get_height()-8))
 
+
+class VisualizerSet:
+	def __init__(*visualizers):
+		self.visualizers = visualizers
+
+	def render(self, surface, percentcomp):		
+		surface.fill(constants.bkgColor)
+		for visualizer in sorted(self.visualizers, key=lambda v: v.sortdepth)
+			v.render_to_screen(self, surface, percentcomp)
+
+
+def makeVeryTrendyVisualizer():
+	return VisualizerSet(
+				BackgroundImageVisualizer("./dunes.jpg"),
+				HlineVisualizer(constants.MIDDLE, )
+				)
+
+
 def printHelpString():
 	print("Usage is visualize [OPTION...] SONGIN FILEOUT")
 	print("	-f, --fresolution=f                 sets the resolution of the fourier transform. Defaults to 10.")
@@ -451,7 +468,7 @@ def printHelpString():
 def get_visualizers_from_options():
 	try:
 		interps={
-			"-i":lambda args: BackgroundImageElement(args[1])
+			"-i":lambda args: BackgroundImageVisualizer(args[1])
 		}
 		visualizers=[]
 		args, postargs = getopt.getopt(
