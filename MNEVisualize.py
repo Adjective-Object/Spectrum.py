@@ -3,8 +3,10 @@ import pygame
 import time
 import random
 import getopt
+import player
 import sys
-
+import spectrum
+import threading
 #list of values 0.0 to 1.0
 def make_random_noise(resolution):
     return [random.random() *(resolution-i)/resolution 
@@ -99,17 +101,38 @@ def get_visualizer_from_args():
         printHelpString()
         sys.exit(0)
 
+class PlayerThread(threading.Thread):
+    live = True
+    def __init__(self, player):
+        super(PlayerThread, self).__init__()
+        self.player = player
+    def run(self):
+        while(self.player.get_data() != ''):
+            self.player.next_frame()
+        self.live = False
+    def live(self):
+        return self.live
 
 if __name__ == "__main__":
     pygame.init()
-    
+    mneplayer = ''
+    if (sys.argv[1].split(".")[-1].lower() == "mp3"):
+        mneplayer = player.Player(sys.argv[1], player.Player.TYPE_MP3)
+    else:
+        mneplayer = player.Player(sys.argv[1], player.Player.TYPE_WAV)
+
+    playerthread = PlayerThread(mneplayer)
+    playerthread.start()
+   
     finish_time=5
     fps = 60
     length = 20.0
 
     #visualizerSet = get_visualizer_from_args()
-    visualizerSet = visualizer.make_minimalist_eq(length)
+    #visualizerSet = visualizer.make_minimalist_eq(length)
+    visualizerSet = visualizer.make_trendy_visualizer(0)
     visualizerSet.initial_bake()
+    data = mneplayer.get_data()
 
     window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
     
@@ -117,12 +140,9 @@ if __name__ == "__main__":
     sumelapsed = 0.0
     initialtime = time.time()
     lastupdate = initialtime
-    while(sumelapsed <= length+finish_time):
-        if(sumelapsed < length):
-            signal = make_random_noise(visualizerSet.fourier_resolution)
-        else:
-            signal = [0.0]*visualizerSet.fourier_resolution
-
+    while(playerthread.live()):
+        signal = spectrum.generate_spectrum(mneplayer.get_data())
+        signal = spectrum.into_bins(signal, 10)
         visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
 
         pygame.display.flip()
