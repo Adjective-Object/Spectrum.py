@@ -317,11 +317,11 @@ if __name__ == "__main__":
 	visualizerSet, postargs = get_visualizer_from_args()
 	length = 0
 	if (postargs[0].split(".")[-1].lower() == "mp3"):
-		mneplayer = player.Player( postargs[0], player.Player.TYPE_MP3)
+		mneplayer = player.Player(postargs[0], player.Player.TYPE_MP3)
 		audio = mutagen.mp3.MP3(postargs[0])
 		length = audio.info.length
 	else:
-		mneplayer = player.Player( postargs[0], player.Player.TYPE_WAV)
+		mneplayer = player.Player(postargs[0], player.Player.TYPE_WAV)
 		length = wav_filelength(postargs[0])
 
 	playerthread = PlayerThread(mneplayer)    

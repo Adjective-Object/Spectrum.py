@@ -16,7 +16,7 @@ MP3_CHUNK = 4096
 class Player:
     TYPE_MP3 = "MP3"
     TYPE_WAV = "WAV"
-    MP3_CHUNK = 4096 * 32
+    MP3_CHUNK = 4096
     WAV_CHUNK = 4096
     def __init__(self, filename, extension):
         self.extension = extension
@@ -29,7 +29,7 @@ class Player:
     def open_file(self):
         if (self.extension == self.TYPE_MP3):
             self.pipe = sp.Popen(["ffmpeg",
-                "-i", sys.argv[1],
+                "-i", self.filename,
                 "-f", "s16le",
                 "-acodec", "pcm_s16le",
                 "-ar", "44100",
@@ -40,7 +40,8 @@ class Player:
             self.wf = wave.open(self.filename, 'rb')
     def make_stream(self):
         if (self.extension == self.TYPE_MP3):
-            self.stream = self.p.open(format=pyaudio.paInt16,
+            self.stream = self.p.open(
+                format=pyaudio.paInt16,
                 channels = 2,
                 rate = 44100,
                 output = True)
@@ -53,7 +54,7 @@ class Player:
 
     def next_frame(self):
         if (self.extension == self.TYPE_MP3):
-            self.data = self.pipe.stdout.read(MP3_CHUNK)
+            self.data = self.pipe.stdout.read(self.MP3_CHUNK)
             self.stream.write(self.data)
         elif (self.extension == self.TYPE_WAV):
             self.data = self.wf.readframes(self.WAV_CHUNK)
