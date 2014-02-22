@@ -7,7 +7,7 @@ import sys
 import subprocess as sp
 
 import numpy
-import spectrum
+import fft_helper as ffth
 import pygame
 
 WAV_CHUNK = 1024
@@ -81,7 +81,7 @@ def play_wav(filename, screen):
     
     while data != '':
         stream.write(data)
-        print_spectrum(screen, spectrum.generate_spectrum(data))
+        print_spectrum(screen, ffth.generate_spectrum(data))
         data = wf.readframes(WAV_CHUNK)
     
     stream.stop_stream()
@@ -107,12 +107,12 @@ def play_mp3(filename, screen):
     data = pipe.stdout.read(MP3_CHUNK)
     while data != '':
         stream.write(data)
-        print_spectrum(screen, spectrum.generate_spectrum(data))
+        print_spectrum(screen, ffth.generate_spectrum(data))
         data = pipe.stdout.read(MP3_CHUNK)
 
 def print_spectrum(screen, spec):
-    spec = spectrum.remove_negative(spec)
-    spec = spectrum.into_bins(spec, 100)
+    spec = ffth.remove_negative(spec)
+    spec = ffth.into_bins(spec, 100)
     scale = 1920.0/len(spec) + 1
     screen.fill((255, 255, 255))
     for i in range(len(spec)):

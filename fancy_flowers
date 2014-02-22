@@ -1,1 +1,0 @@
-python MNEVisualize.py -e "bkgimg ./flowers.jpg, bareq ONE_THIRD 0 f, songinf LEFT TOP IF_THERE'S_TIME ODESZA 0 0, hbar ONE_THIRD -30 20" --colormain=255,255,255,200 --colorsub=255,255,255,30 --font=./Quicksand_regular.ttf,128 -r 1920x1080 odesza.wav
