@@ -18,12 +18,12 @@ class Player:
     TYPE_WAV = "WAV"
     MP3_CHUNK = 4096
     WAV_CHUNK = 4096
-    def __init__(self, filename, extension):
+    def __init__(self, filename, extension, realstream = True):
         self.extension = extension
         self.filename = filename
         self.p = pyaudio.PyAudio()
         self.open_file()
-        self.make_stream()
+        self.make_stream(realstream)
         self.data = ''
         self.next_frame()
     def open_file(self):
@@ -38,35 +38,47 @@ class Player:
                 stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
         elif (self.extension == self.TYPE_WAV):
             self.wf = wave.open(self.filename, 'rb')
-    def make_stream(self):
+
+    def make_stream(self, realstream=True):
         if (self.extension == self.TYPE_MP3):
-            self.stream = self.p.open(
-                format=pyaudio.paInt16,
-                channels = 2,
-                rate = 44100,
-                output = True)
+            if realstream:
+                self.stream = self.p.open(
+                    format=pyaudio.paInt16,
+                    channels = 2,
+                    rate = 44100,
+                    output = True)
+            self.seconds_per_chunk = (1.0/44100) * self.MP3_CHUNK
+
         elif (self.extension == self.TYPE_WAV):
-            self.stream = self.p.open(
-                format = self.p.get_format_from_width(self.wf.getsampwidth()),
-                channels = self.wf.getnchannels(),
-                rate = self.wf.getframerate(),
-                output = True)
+            if realstream:
+                self.stream = self.p.open(
+                    format = self.p.get_format_from_width(self.wf.getsampwidth()),
+                    channels = self.wf.getnchannels(),
+                    rate = self.wf.getframerate(),
+                    output = True)
+            self.seconds_per_chunk = (1.0/wf.getframerate()) * self.WAV_CHUNK
+
+        if not realstream:
+            self.stream=None
 
     def next_frame(self):
         if (self.extension == self.TYPE_MP3):
             self.data = self.pipe.stdout.read(self.MP3_CHUNK)
-            self.stream.write(self.data)
+            if self.stream:
+                self.stream.write(self.data)
         elif (self.extension == self.TYPE_WAV):
             self.data = self.wf.readframes(self.WAV_CHUNK)
-            self.stream.write(self.data)
+            if self.stream:
+                self.stream.write(self.data)
 
     def get_data(self):
         return self.data
 
     def close(self):
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
+        if self.stream:
+            self.stream.stop_stream()
+            self.stream.close()
+            self.p.terminate()
 
 def play_wav(filename, screen):
     wf = wave.open(filename, 'rb')

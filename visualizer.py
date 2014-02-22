@@ -45,6 +45,7 @@ class BackgroundImageVisualizer(Visualizer):
 
 	def __init__(self, imagePATH):
 		Visualizer.__init__(self)
+		self.sortdepth = 0
 		self.original_art = pygame.image.load(imagePATH)
 
 	def initial_bake(self):
@@ -96,7 +97,7 @@ class TextVisualizer(Visualizer):
 
 class HlineVisualizer(Visualizer):
 
-	def __init__(self, location_y, offsety, thickness=3):
+	def __init__(self, location_y, offsety, thickness=0):
 		Visualizer.__init__(self)
 		self.offsety = offsety
 		self.location = (LEFT, location_y)
@@ -104,6 +105,8 @@ class HlineVisualizer(Visualizer):
 
 	def initial_bake(self):
 		self.baked_location = self.get_baked_coords(self.location[0], self.location[1])
+		if(self.thickness==0):
+			self.thickness = self.parent.padding_internal
 
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		#print(self.baked_location)
@@ -180,13 +183,13 @@ class Equalizer(Visualizer):
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor
+						elapsed * self.smoothing_factor * 8.0
 			) if  self.display_fourier[i]<self.operating_fourier[i] else
 			moving_towards(
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor * 8.0
+						elapsed * self.smoothing_factor
 			) ) for i in range(self.parent.fourier_resolution)]
 
 		if self.smoothing_factor != -1 else self.operating_fourier)
@@ -196,9 +199,9 @@ class Equalizer(Visualizer):
 
 
 class BarEqualizer(Equalizer):
-	def __init__(self, location_y, offset_y, direction=True):
+	def __init__(self, location_y, offset_y, direction=True, smoothing=2):
 		Equalizer.__init__(self, location_y, offset_y, direction,
-			2, lambda self, f, elapsed: f)
+			smoothing, lambda self, f, elapsed: f)
 		
 	def initial_bake(self):
 		Equalizer.initial_bake(self)
@@ -289,7 +292,7 @@ class ThresholdPolygonEqualizer(PolygonEqualizer):
 class BulbEqualizer(PolygonEqualizer):
 	def __init__(self, location_y, offset_y, orientation=True, smoothing_factor=1, fatness_factor=1.4, hscale = 20.0):
 		PolygonEqualizer.__init__(self, location_y, offset_y, orientation, smoothing_factor) 
-		self.hscale = 20.0
+		self.hscale = float(hscale)
 		self.fatness_factor = fatness_factor
 		self.location = (LEFT, location_y)
 		self.offsetty = offset_y
@@ -299,11 +302,19 @@ class BulbEqualizer(PolygonEqualizer):
 		return (1/2.5) * 2.797**( -(relativex)**2 /2)
 
 	def make_norm(self, array, location, normheight):
+		"""
 		for i in range(max(0, int(location-(3*self.hscale ))), min(len(array), int(location+( 3*self.hscale )))):
 			array[i] = max(array[i], self.calc_norm(
 				(((i-location<0)*-1)+(1*(i-location>=0))) *
 				(( abs(i-location) * (1/self.hscale)/3)**self.fatness_factor)*3
 			)* normheight)
+		"""
+
+		for i in range(max(0, int(location-(3*self.hscale ))), min(len(array), int(location+( 3*self.hscale )))):
+			array[i] = array[i] + self.calc_norm(
+				(((i-location<0)*-1)+(1*(i-location>=0))) *
+				(( abs(i-location) * (1/self.hscale)/3)**self.fatness_factor)*3
+			)* normheight
 
 	def render(self, surface):
 		operatingdim = (surface.get_width()-self.parent.padding_external*2,
@@ -334,8 +345,8 @@ class BulbEqualizer(PolygonEqualizer):
 class BulbEqualizerAA(BulbEqualizer):
 
 	def __init__(self, location_y, offsety=0, orientation=True, wireframe = False, 
-			smoothing_factor=2):
-		BulbEqualizer.__init__(self, location_y, offsety, orientation, smoothing_factor)
+			smoothing_factor=2, fatness_factor=1.4, hscale=20.0):
+		BulbEqualizer.__init__(self, location_y, offsety, orientation, smoothing_factor, fatness_factor, hscale)
 		self.wireframe=wireframe
 
 	def initial_bake(self):
@@ -411,13 +422,14 @@ class VisualizerSet:
 		for v in sorted(self.visualizers, key=lambda v: v.sortdepth):
 			v.render_to_screen(surface, signal, percentcomp, elapsed)
 
+
 def make_trendy_visualizer(v, image="./dunes.jpg", title="TITLE", artist="ARTIST"):
 	v.add( BackgroundImageVisualizer(image))
 	v.add( HlineVisualizer(SECOND_THIRD, -8))
 	print (title,artist)
 	v.add( TextVisualizer(title, artist,LEFT, MIDDLE, 20, 0))
 	v.add( TimeVisualizer(RIGHT, SECOND_THIRD))
-	v.add( BulbEqualizerAA(SECOND_THIRD, 0, False, False))
+	v.add( BulbEqualizerAA(SECOND_THIRD, 0, False, False, 2, 1.4, 30))
 	v.padding_external = 0
 	v.colorMain = pygame.Color(255,255,255,50)
 	v.colorSub = pygame.Color(255,255,255,30)

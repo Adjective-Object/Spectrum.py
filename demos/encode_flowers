@@ -1,0 +1,1 @@
+python ../Spectrum.py -e "bkgimg ./flowers.jpg, bareq ONE_THIRD 0 f 10, songinf LEFT TOP IF_THERE'S_TIME ODESZA 0 0, hbar ONE_THIRD -30 20" --colormain=255,255,255,200 --colorsub=255,255,255,30 --font=./Quicksand_regular.ttf,32 -r 800x450 -f flowerout.mp4 mako.mp3

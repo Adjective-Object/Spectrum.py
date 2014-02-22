@@ -1,1 +1,1 @@
-python ../Spectrum.py -e "trendy ./dunes.jpg IF_THERE'S_TIME ODEZSA" --font=./Quicksand_regular.ttf,20 -r 1920x1080 mako.mp3
+python ../Spectrum.py -e "trendy ./dunes.jpg IF_THERE'S_TIME ODEZSA" --font=./Quicksand_regular.ttf,20 -r 800x450 mako.mp3

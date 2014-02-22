@@ -7,12 +7,16 @@ import sys
 import threading
 
 import mutagen.mp3 #lib to deal with metadata
-
+	
 import player
 import fft_helper as ffth
 
 import wave
 import contextlib
+
+import subprocess as sp
+from signal import signal, SIGPIPE, SIG_DFL 
+
 
 def wav_filelength(fname):
 	with contextlib.closing(wave.open(fname,'r')) as f:
@@ -110,6 +114,10 @@ def printHelpString():
 	print "                                    Defaults to (24,24,24)"
 	print " -b, --colorback[=#,#,#,#]     set the background color (RGB/RGBA),"
 	print "                                    Defaults to (16,16,16)"
+	print " -o, --font[=path,size,p2,s2]  sets fontBig and fontSmall"
+	print "                                    path/size denote the font and size of the font for fontBig"
+	print "                                    p2/s2 denote the font and size for fontSmall"
+	print "                                    if unspecified, p2 and s2 degault to path and size."
 	print
 	print " XLOC = {left, middle, right}"
 	print " YLOC = {top, middle, bottom}"
@@ -121,9 +129,11 @@ def printHelpString():
 	print "      creates a visualizer with a single horizonatal progress bar and"
 	print "      an inverted bar equalizer"
 	print 
-	print " hbar <vlocation> <voffset> :"
+	print " hbar <vlocation> <voffset> <thickness>:"
 	print "      horizontal bar at position <vlocation>"
 	print "      with verical offset <voffset>"
+	print "      <thickness> defaults to internal padding value"
+	print "      If <thickness> == 0, then height will be the internal padding value"
 	print
 	print " bkgimg <PATH>:"
 	print "      background image at location PATH"
@@ -143,9 +153,10 @@ def printHelpString():
 	print "      polygon eq at vertical position <vlocation>,"
 	print "      verical offset <yoffset>, and <direction> (inverted/upright)"
 	print
-	print " bulbeq <ylocation> <yoffset> <direction> <wireframe> <fatness>:"
+	print " bulbeq <ylocation> <yoffset> <direction> <wireframe> <fatness> <hscale>:"
 	print "      bulbous eq at vertical position <vlocation>, offset <voffset>."
 	print "      <wireframe> defaults to false, <fatness> defaults to 1.4"
+	print "      <hscale> defaults to 20.0"
 	print
 	print "trendy <backgroundImage> <title> <artist>:"
 	print "      preconfigured player with WOW SO TRENDY aesthetic"
@@ -165,7 +176,9 @@ def add_elements(nset, declarations):
 			s.remove('')
 
 		if(s[0].lower() == "hbar"):
-			check_num_args("hbar",s,3)
+			check_num_args("hbar",s,2)
+			if(len(s)<3):
+				s = s + [0]
 			nset.add(visualizer.HlineVisualizer(
 				get_location(s[1], "hbar", "<ylocation>"),
 				get_int(s[2], "hbar", "<yoffset>"),
@@ -197,10 +210,13 @@ def add_elements(nset, declarations):
 			)
 		elif(s[0].lower() == "bareq"):
 			check_num_args("bareq",s,3)
+			if(len(s)==4):
+				s.append("2")
 			nset.add(visualizer.BarEqualizer(
 				get_location(s[1], "bareq", "<ylocation"),
 				get_int(s[2], "bareq", "<yoffset>"),
-				get_boolean(s[3], "bareq", "<direction>"))
+				get_boolean(s[3], "bareq", "<direction>"),
+				get_float(s[4], "bareq", "<speed>"))
 			)
 		elif(s[0].lower() == "polyeq"):
 			check_num_args("polyeq",s,3)
@@ -220,13 +236,16 @@ def add_elements(nset, declarations):
 				s.append("false")
 			if(len(s)==5):
 				s.append("1.4")
+			if(len(s)==6):
+				s.append("20.0")
 			
 			nset.add(visualizer.BulbEqualizerAA(
 				get_location(s[1], "bulbeq", "<ylocation>"),
 				get_int(s[2], "bulbeq","<yoffset>"),
 				get_boolean(s[3], "bulbeq", "<direction>"),
 				get_boolean(s[4], "bulbeq", "<wireframe>"),
-				get_float(s[5], "bulbeq", "<fatness>"))
+				get_float(s[5], "bulbeq", "<fatness>"),
+				get_float(s[6], "bulbeq", "<hscale>"))
 			)
 		elif(s[0].lower() == "minimalist"):
 			nset = visualizer.make_minimalist_eq(nset)
@@ -269,6 +288,7 @@ def get_visualizer_from_args():
 				newset.padding_internal = float(arg[1])
 			elif arg[0] == "-f" or arg[0] == "--file":
 				newset.to_file = True
+				newset.file_destination = arg[1]
 			elif arg[0] == "-x" or arg[0] == "--expadding":
 				newset.padding_external = float(arg[1])
 			elif arg[0] == "-m" or arg[0] == "--colormain":
@@ -284,7 +304,12 @@ def get_visualizer_from_args():
 				s = arg[1].split(",")
 				newset.font_big = pygame.font.Font(
 						s[0], get_int(s[1], "-o/--font", "param 2"))
-				newset.font_small = newset.font_big
+				if(len(s)==2):
+					s = s+s[0:2]
+				elif(len(s)==3):
+					arg.append(arg[2])
+				newset.font_small = pygame.font.Font(
+						s[2], get_int(s[3], "-o/--font", "param 4s"))
 			else:
 				print("Unknown Arg %s"%(arg[0]))
 		if(len(newset.visualizers)==0):
@@ -311,23 +336,11 @@ class PlayerThread(threading.Thread):
 	def kill(self):
 		self.live = False
 
-if __name__ == "__main__":
-	pygame.init()
 
-	visualizerSet, postargs = get_visualizer_from_args()
-	length = 0
-	if (postargs[0].split(".")[-1].lower() == "mp3"):
-		mneplayer = player.Player(postargs[0], player.Player.TYPE_MP3)
-		audio = mutagen.mp3.MP3(postargs[0])
-		length = audio.info.length
-	else:
-		mneplayer = player.Player(postargs[0], player.Player.TYPE_WAV)
-		length = wav_filelength(postargs[0])
-
+def do_preview(visualizerSet, mneplayer, length):
 	playerthread = PlayerThread(mneplayer)    
 	playerthread.start()
 
-	finish_time=5
 	fps = 60
 
 	#visualizerSet = visualizer.make_minimalist_eq()
@@ -340,7 +353,7 @@ if __name__ == "__main__":
 	
 	data = mneplayer.get_data()
 
-	pygame.display.set_caption("Live Preview")
+	pygame.display.set_caption("Spectrum.py Preview")
 	window = pygame.display.set_mode((visualizerSet.resolution[0],visualizerSet.resolution[1]))
 
 	elapsed = 1.0/fps
@@ -351,7 +364,7 @@ if __name__ == "__main__":
 	while(playerthread.isLive()):
 		signal = ffth.generate_spectrum(mneplayer.get_data())
 		signal = ffth.remove_negative(signal)
-		signal = ffth.into_bins(signal, 10)
+		signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
 		visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
 
 		pygame.display.flip()
@@ -372,3 +385,85 @@ if __name__ == "__main__":
 
 		lastupdate = time.time()
 		sumelapsed = lastupdate-initialtime
+
+
+def render_to_video(visualizerSet, mneplayer, length):
+
+	renderSurface = pygame.surface.Surface(visualizerSet.resolution)
+
+	video_fps = 24
+	audio_chunktime = mneplayer.seconds_per_chunk
+	total_video_frames = int(video_fps*length)
+	currenttime = 0
+	current_audio_frame = 0
+
+	renderedframes = 0
+
+	opts = [ "ffmpeg",
+		'-y', # (optional) overwrite the output file if it already exists
+		'-f', 'rawvideo',
+		'-vcodec','rawvideo',
+		'-s', '%sx%s'%visualizerSet.resolution, # size of one frame
+		'-pix_fmt', 'rgb24',
+		'-r', '%s'%(video_fps), # frames per second
+		'-i', '-', # The imput comes from a pipe
+		'-an', # Tells FFMPEG not to expect any audio (TODO use actual audio file)
+		'-vcodec', 'mpeg',
+		'my_output_videofile.mp4' ]
+	
+	#print opts
+
+	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sp.PIPE, stderr=sp.PIPE)
+
+	#Ignore SIGPIPES as IOExceptions
+	#I HAVE NO IDEA WHAT SIGPIPE DO
+	#signal(SIGPIPE,SIG_DFL) 
+
+	while mneplayer.get_data()!= '':
+		#render nxext frame based on data
+		while renderedframes * (1.0/video_fps) < currenttime:
+			print("rendering video frame %s/%s"%(renderedframes, total_video_frames))
+			signal = ffth.generate_spectrum(mneplayer.get_data())
+			signal = ffth.remove_negative(signal)
+			signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
+			visualizerSet.render_to_screen(renderSurface, signal, min(1.0, currenttime/length), 1.0/video_fps)
+
+			imgraw = pygame.image.tostring(renderSurface, "RGB")
+			pipe.stdin.write(imgraw)
+
+			renderedframes += 1
+
+		mneplayer.next_frame()
+		current_audio_frame += 1
+		currenttime = current_audio_frame * audio_chunktime
+
+		mneplayer.next_frame()
+
+	print("done")
+	print("closing pipe")
+	pipe.stdin.close()
+	pipe.stdout.close()
+	pipe.stderr.close()
+	pipe.terminate()
+
+
+if __name__ == "__main__":
+	pygame.init()
+
+	visualizerSet, postargs = get_visualizer_from_args()
+
+	length = 0
+	if (postargs[0].split(".")[-1].lower() == "mp3"):
+		mneplayer = player.Player(postargs[0], player.Player.TYPE_MP3, not visualizerSet.to_file)
+		audio = mutagen.mp3.MP3(postargs[0])
+		length = audio.info.length
+	else:
+		mneplayer = player.Player(postargs[0], player.Player.TYPE_WAV, not visualizerSet.to_file)
+		length = wav_filelength(postargs[0])
+	visualizerSet.song_length=length
+	visualizerSet.initial_bake()
+
+	if(visualizerSet.to_file):
+		render_to_video(visualizerSet, mneplayer, length)
+	else:
+		do_preview(visualizerSet, mneplayer, length)
