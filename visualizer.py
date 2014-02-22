@@ -421,14 +421,14 @@ def make_trendy_visualizer(v, image="./dunes.jpg", title="TITLE", artist="ARTIST
 	v.padding_external = 0
 	v.colorMain = pygame.Color(255,255,255,50)
 	v.colorSub = pygame.Color(255,255,255,30)
-	v.font_big = pygame.font.get_default_font()
-	v.font_small = pygame.font.get_default_font()
+	v.font_big = pygame.font.Font(pygame.font.get_default_font(),20)
+	v.font_small = pygame.font.Font(pygame.font.get_default_font(),12)
 
 	return v
 
 def make_minimalist_eq(v):
 	v.add(TimeVisualizer(RIGHT, THIRD_QUARTER, 0, 50))
 	v.add(BarEqualizer(THIRD_QUARTER, 0))
-	v.font_big = pygame.font.get_default_font()
-	v.font_small = pygame.font.get_default_font()
+	v.font_big = pygame.font.Font(pygame.font.get_default_font(),20)
+	v.font_small = pygame.font.Font(pygame.font.get_default_font(),12)
 	return v
