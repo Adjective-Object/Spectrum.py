@@ -1,0 +1,1 @@
+python ../Spectrum.py -e "trendy ./dunes.jpg IF_THERE'S_TIME ODEZSA" -r 1920x1080 mako.mp3
