@@ -214,7 +214,7 @@ class BarEqualizer(Equalizer):
 	def render(self, surface):
 		rectwidth = (
 			(   self.parent.operatingdim[0] -
-				self.parent.padding_internal * (self.parent.fourier_resolution-1)
+				self.parent.padding_internal * (self.parent.fourier_resolution)
 			) / self.parent.fourier_resolution)
 
 		for x in range(self.parent.fourier_resolution):

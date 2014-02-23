@@ -1,0 +1,1 @@
+python ../Spectrum.py -e "bkgimg ./sunset.jpg, bareq ONE_THIRD 0 f, songinf LEFT TOP BEAM_(ORCHESTRAL_MIX) MAKO 0 0, hbar ONE_THIRD -8 5" --colormain=255,255,255,200 --colorsub=255,255,255,30 --font=./Quicksand_regular.ttf,128 -r 1920x1080 -q 10 -f "output.mkv" mako.mp3

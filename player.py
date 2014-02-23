@@ -10,8 +10,19 @@ import numpy
 import fft_helper as ffth
 import pygame
 
+import mutagen.mp3 #lib to deal with metadata
+
+
 WAV_CHUNK = 1024
 MP3_CHUNK = 4096
+
+
+def wav_filelength(fname):
+    with contextlib.closing(wave.open(fname,'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        return duration
 
 class Player:
     TYPE_MP3 = "MP3"
@@ -23,9 +34,28 @@ class Player:
         self.filename = filename
         self.p = pyaudio.PyAudio()
         self.open_file()
-        self.make_stream(realstream)
+        self.stream=None
+
+        self.calc_song_length(filename)
+
+        if realstream:
+            self.make_stream()
+
         self.data = ''
+
         self.next_frame()
+
+    def calc_song_length(self, filename):
+        if (filename.split(".")[-1].lower() == "mp3"):
+            audio = mutagen.mp3.MP3(filename)
+            self.length = audio.info.length
+            self.sample_rate = audio.info.sample_rate
+            self.chunksize = self.MP3_CHUNK
+        elif (self.extension == self.TYPE_WAV):
+            self.length = wav_filelength(filename)
+            self.sample_rate  = self.wf.getsampwidth()
+            self.chunksize = self.WAV_CHUNK
+
     def open_file(self):
         if (self.extension == self.TYPE_MP3):
             self.pipe = sp.Popen(["ffmpeg",
@@ -39,25 +69,23 @@ class Player:
         elif (self.extension == self.TYPE_WAV):
             self.wf = wave.open(self.filename, 'rb')
 
-    def make_stream(self, realstream=True):
+    def make_stream(self):
         if (self.extension == self.TYPE_MP3):
-            if realstream:
-                self.stream = self.p.open(
-                    format=pyaudio.paInt16,
-                    channels = 2,
-                    rate = 44100,
-                    output = True)
+            self.stream = self.p.open(
+                format=pyaudio.paInt16,
+                channels = 2,
+                rate = self.sample_rate,
+                output = True)
 
         elif (self.extension == self.TYPE_WAV):
-            if realstream:
-                self.stream = self.p.open(
-                    format = self.p.get_format_from_width(self.wf.getsampwidth()),
-                    channels = self.wf.getnchannels(),
-                    rate = self.wf.getframerate(),
-                    output = True)
+            self.stream = self.p.open(
+                format = self.p.get_format_from_width(self.wf.getsampwidth()),
+                channels = self.wf.getnchannels(),
+                rate = self.wf.getframerate(),
+                output = True)
 
-        if not realstream:
-            self.stream=None
+    def get_current_time(self):
+        return float(self.readsamples)/self.length_samples * self.length
 
     def next_frame(self):
         if (self.extension == self.TYPE_MP3):

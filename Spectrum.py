@@ -5,8 +5,6 @@ import random
 import getopt
 import sys
 import threading
-
-import mutagen.mp3 #lib to deal with metadata
 	
 import player
 import fft_helper as ffth
@@ -16,14 +14,6 @@ import contextlib
 
 import subprocess as sp
 from signal import signal, SIGPIPE, SIG_DFL 
-
-
-def wav_filelength(fname):
-	with contextlib.closing(wave.open(fname,'r')) as f:
-		frames = f.getnframes()
-		rate = f.getframerate()
-		duration = frames / float(rate)
-		return duration
 
 
 def parseColor(string):
@@ -337,7 +327,7 @@ class PlayerThread(threading.Thread):
 		self.live = False
 
 
-def do_preview(visualizerSet, mneplayer, length):
+def do_preview(visualizerSet, mneplayer, postargs):
 	playerthread = PlayerThread(mneplayer)    
 	playerthread.start()
 
@@ -346,7 +336,6 @@ def do_preview(visualizerSet, mneplayer, length):
 	#visualizerSet = visualizer.make_minimalist_eq()
 	#visualizerSet = visualizer.make_trendy_visualizer()
 	#TODO maxtim
-	visualizerSet.song_length=length
 	visualizerSet.initial_bake()
 
 	print visualizerSet.visualizers
@@ -365,7 +354,7 @@ def do_preview(visualizerSet, mneplayer, length):
 		signal = ffth.generate_spectrum(mneplayer.get_data())
 		signal = ffth.remove_negative(signal)
 		signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
-		visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/length), elapsed)
+		visualizerSet.render_to_screen(window, signal, min(1.0,sumelapsed/visualizerSet.song_length), elapsed)
 
 		pygame.display.flip()
 
@@ -387,13 +376,15 @@ def do_preview(visualizerSet, mneplayer, length):
 		sumelapsed = lastupdate-initialtime
 
 
-def render_to_video(visualizerSet, mneplayer, length):
+def render_to_video(visualizerSet, mneplayer, postargs):
 
 	renderSurface = pygame.surface.Surface(visualizerSet.resolution)
 
 	video_fps = 24
-	total_video_frames = int(video_fps*length)
+	total_video_frames = int(video_fps*visualizerSet.song_length)
+	total_audio_frames = int(4*float(mneplayer.sample_rate)/mneplayer.chunksize*visualizerSet.song_length)
 	currenttime = 0.0
+	current_audiotime = 0.0
 	current_audio_frame = 0
 
 	renderedframes = 0
@@ -401,18 +392,23 @@ def render_to_video(visualizerSet, mneplayer, length):
 	opts = [ "ffmpeg",
 		'-y', # (optional) overwrite the output file if it already exists
 		'-f', 'rawvideo',
-		'-vcodec','rawvideo',
 		'-s', '%sx%s'%visualizerSet.resolution, # size of one frame
 		'-pix_fmt', 'rgb24',
 		'-r', '%s'%(video_fps), # frames per second
 		'-i', '-', # The imput comes from a pipe
-		'-an', # Tells FFMPEG not to expect any audio (TODO use actual audio file)
-		'-vcodec', 'mpeg4',
-		visualizerSet.file_destination ]
+		'-i', postargs[0],
+		'-c:v', 'libx264',
+		'-preset', 'ultrafast',
+		'-qp', '0',
+		visualizerSet.file_destination 
+	]
 	
-	#print opts	
+	print opts	
 
 	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sp.PIPE, stderr=sp.PIPE)
+
+	oldpercent = -1
+	lastprint = time.time()
 
 	#Ignore SIGPIPES as IOExceptions
 	#I HAVE NO IDEA WHAT SIGPIPE DO
@@ -422,13 +418,27 @@ def render_to_video(visualizerSet, mneplayer, length):
 
 	while mneplayer.get_data()!= '':
 		#render nxext frame based on data
-		while currenttime < length:
-			if(renderedframes%100 == 0):
-				print("rendering video frame %s/%s 	(%f/ %f)"%(renderedframes, total_video_frames, currenttime, length))
-			signal = ffth.generate_spectrum(mneplayer.get_data())
-			signal = ffth.remove_negative(signal)
-			signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
-			visualizerSet.render_to_screen(renderSurface, signal, min(1.0, currenttime/length), 1.0/video_fps)
+		signal = ffth.generate_spectrum(mneplayer.get_data())
+		signal = ffth.remove_negative(signal)
+		signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
+		current_audiotime = float(current_audio_frame)/total_audio_frames * visualizerSet.song_length
+		
+		#print(currenttime, current_audiotime)
+		while currenttime <= current_audiotime:
+			percent = int(float(renderedframes)/total_video_frames*100)
+			np = time.time()
+			if(percent != oldpercent):
+				print("%i percent done 	(video frame %s/%s)	(audio frame %s/ %s) %00.00f elapsed"%
+					(percent, renderedframes, total_video_frames, current_audio_frame, total_audio_frames, np-lastprint)
+				)
+				oldpercent = percent
+				lastprint = np
+				
+
+			visualizerSet.render_to_screen(
+				renderSurface, signal,
+				min(1.0, currenttime/visualizerSet.song_length), 1.0/video_fps
+			)
 
 			imgraw = pygame.image.tostring(renderSurface, "RGB")
 			try:
@@ -436,14 +446,19 @@ def render_to_video(visualizerSet, mneplayer, length):
 				pipe.stdin.write(imgraw)
 			except Exception as e:
 				print e
-				pass
 
 			renderedframes += 1
-			currenttime = renderedframes * 1.0/video_fps
-
+			currenttime = float(renderedframes)/total_video_frames * visualizerSet.song_length
+		
+		
 		current_audio_frame += 1
 		mneplayer.next_frame()
-	dump.close()
+
+	#dump.close()
+	print("rendered final video frame %s/%s 	(%s/ %s)"%(
+		renderedframes, total_video_frames, current_audio_frame, total_audio_frames)
+		)
+
 	print("done")
 	print("closing pipe")
 	pipe.stdin.close()
@@ -457,18 +472,15 @@ if __name__ == "__main__":
 
 	visualizerSet, postargs = get_visualizer_from_args()
 
-	length = 0
 	if (postargs[0].split(".")[-1].lower() == "mp3"):
 		mneplayer = player.Player(postargs[0], player.Player.TYPE_MP3, not visualizerSet.to_file)
-		audio = mutagen.mp3.MP3(postargs[0])
-		length = audio.info.length
 	else:
 		mneplayer = player.Player(postargs[0], player.Player.TYPE_WAV, not visualizerSet.to_file)
-		length = wav_filelength(postargs[0])
-	visualizerSet.song_length=length
+
 	visualizerSet.initial_bake()
+	visualizerSet.song_length = mneplayer.length
 
 	if(visualizerSet.to_file):
-		render_to_video(visualizerSet, mneplayer, length)
+		render_to_video(visualizerSet, mneplayer, postargs)
 	else:
-		do_preview(visualizerSet, mneplayer, length)
+		do_preview(visualizerSet, mneplayer, postargs)
