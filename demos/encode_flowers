@@ -1,1 +1,2 @@
-python ../Spectrum.py -e "bkgimg ./flowers.jpg, bareq ONE_THIRD 0 f 10, songinf LEFT TOP IF_THERE'S_TIME ODESZA 0 0, hbar ONE_THIRD -30 20" --colormain=255,255,255,200 --colorsub=255,255,255,30 --font=./Quicksand_regular.ttf,32 -r 800x450 -f flowerout.mp4 mako.mp3
+python ../Spectrum.py -e "bkgimg ./flowers.jpg, bareq ONE_THIRD 0 f 3, songinf LEFT TOP A_IS_TO_B UNKNOWN_ARTIST 0 0, hbar ONE_THIRD -8 5" --colormain=255,255,255,200 --colorsub=255,255,255,30 --font=./Quicksand_regular.ttf,42 -r 800x450 -q 10 -f "a is to b.mp4" "a is to b.mp3"
+	

@@ -392,9 +392,8 @@ def render_to_video(visualizerSet, mneplayer, length):
 	renderSurface = pygame.surface.Surface(visualizerSet.resolution)
 
 	video_fps = 24
-	audio_chunktime = mneplayer.seconds_per_chunk
 	total_video_frames = int(video_fps*length)
-	currenttime = 0
+	currenttime = 0.0
 	current_audio_frame = 0
 
 	renderedframes = 0
@@ -408,10 +407,10 @@ def render_to_video(visualizerSet, mneplayer, length):
 		'-r', '%s'%(video_fps), # frames per second
 		'-i', '-', # The imput comes from a pipe
 		'-an', # Tells FFMPEG not to expect any audio (TODO use actual audio file)
-		'-vcodec', 'mpeg',
-		'my_output_videofile.mp4' ]
+		'-vcodec', 'mpeg4',
+		visualizerSet.file_destination ]
 	
-	#print opts
+	#print opts	
 
 	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sp.PIPE, stderr=sp.PIPE)
 
@@ -419,26 +418,32 @@ def render_to_video(visualizerSet, mneplayer, length):
 	#I HAVE NO IDEA WHAT SIGPIPE DO
 	#signal(SIGPIPE,SIG_DFL) 
 
+	#dump = file("./dump","w")
+
 	while mneplayer.get_data()!= '':
 		#render nxext frame based on data
-		while renderedframes * (1.0/video_fps) < currenttime:
-			print("rendering video frame %s/%s"%(renderedframes, total_video_frames))
+		while currenttime < length:
+			if(renderedframes%100 == 0):
+				print("rendering video frame %s/%s 	(%f/ %f)"%(renderedframes, total_video_frames, currenttime, length))
 			signal = ffth.generate_spectrum(mneplayer.get_data())
 			signal = ffth.remove_negative(signal)
 			signal = ffth.into_bins(signal, visualizerSet.fourier_resolution)
 			visualizerSet.render_to_screen(renderSurface, signal, min(1.0, currenttime/length), 1.0/video_fps)
 
 			imgraw = pygame.image.tostring(renderSurface, "RGB")
-			pipe.stdin.write(imgraw)
+			try:
+				#dump.write(imgraw)
+				pipe.stdin.write(imgraw)
+			except Exception as e:
+				print e
+				pass
 
 			renderedframes += 1
+			currenttime = renderedframes * 1.0/video_fps
 
-		mneplayer.next_frame()
 		current_audio_frame += 1
-		currenttime = current_audio_frame * audio_chunktime
-
 		mneplayer.next_frame()
-
+	dump.close()
 	print("done")
 	print("closing pipe")
 	pipe.stdin.close()

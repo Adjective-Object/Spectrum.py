@@ -47,7 +47,6 @@ class Player:
                     channels = 2,
                     rate = 44100,
                     output = True)
-            self.seconds_per_chunk = (1.0/44100) * self.MP3_CHUNK
 
         elif (self.extension == self.TYPE_WAV):
             if realstream:
@@ -56,7 +55,6 @@ class Player:
                     channels = self.wf.getnchannels(),
                     rate = self.wf.getframerate(),
                     output = True)
-            self.seconds_per_chunk = (1.0/wf.getframerate()) * self.WAV_CHUNK
 
         if not realstream:
             self.stream=None

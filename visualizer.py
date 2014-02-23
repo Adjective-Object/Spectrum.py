@@ -176,7 +176,12 @@ class Equalizer(Visualizer):
 	def render_to_screen(self, surface, fourier, percentcomp, elapsed):
 		self.operating_fourier = self.input_output_relationship( self, fourier, elapsed)
 		self.display_fourier = self.gradualize_display(elapsed)
+		#self.display_fourier = self.average_display(self.display_fourier)
 		self.render(surface)
+
+	def average_display(self, f, drama_scale=1):
+		tare = 0.5-float(sum(f))/len(f)
+		return [min(max(0,drama_scale*i + tare),1) for i in f]
 
 	def gradualize_display(self, elapsed):
 		return ([( moving_towards(
@@ -189,11 +194,11 @@ class Equalizer(Visualizer):
 					self.display_fourier[i],
 					self.operating_fourier[i],
 					(self.operating_fourier[i] - self.display_fourier[i]) *
-						elapsed * self.smoothing_factor
+						elapsed * self.smoothing_factor * 2.0
 			) ) for i in range(self.parent.fourier_resolution)]
 
 		if self.smoothing_factor != -1 else self.operating_fourier)
-	
+
 	def render(self, surface):
 		pass 
 
