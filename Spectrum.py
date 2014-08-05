@@ -14,7 +14,7 @@ import contextlib
 
 import subprocess as sp
 from signal import signal, SIGPIPE, SIG_DFL 
-
+import os
 
 def parseColor(string):
 	s = string.replace("(","").replace(")","").replace(" ","").split(",")
@@ -405,7 +405,20 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 	
 	print opts	
 
-	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sp.PIPE, stderr=sp.PIPE)
+	#dump stdout and stdderr so ffmpeg will not hang
+	#devnul = open(os.devnull,"w")
+	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+
+	class ErrorLogger(threading.Thread):
+		def __init__(self):
+			self.alive=True
+		def run(self):
+			while(self.alive):
+				print pipe.stdin.read()
+				print pipe.stderr.read()
+		def kill(self):
+			self.alive=False
+	s = ErrorLogger()
 
 	oldpercent = -1
 	lastprint = time.time()
@@ -415,6 +428,7 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 	#signal(SIGPIPE,SIG_DFL) 
 
 	#dump = file("./dump","w")
+
 
 	while mneplayer.get_data()!= '':
 		#render nxext frame based on data
@@ -428,7 +442,7 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 			percent = int(float(renderedframes)/total_video_frames*100)
 			np = time.time()
 			if(percent != oldpercent):
-				print("%i percent done 	(video frame %s/%s)	(audio frame %s/ %s) %00.00f elapsed"%
+				print("> %i percent done 	(video frame %s/%s)	(audio frame %s/ %s) %00.00f elapsed"%
 					(percent, renderedframes, total_video_frames, current_audio_frame, total_audio_frames, np-lastprint)
 				)
 				oldpercent = percent
@@ -461,10 +475,12 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 
 	print("done")
 	print("closing pipe")
+	s.kill()
 	pipe.stdin.close()
 	pipe.stdout.close()
 	pipe.stderr.close()
 	pipe.terminate()
+
 
 
 if __name__ == "__main__":
