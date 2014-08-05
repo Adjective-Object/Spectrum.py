@@ -406,8 +406,9 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 	print opts	
 
 	#dump stdout and stdderr so ffmpeg will not hang
-	#devnul = open(os.devnull,"w")
-	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+	devnul = open(os.devnull,"w")
+	#pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=sys.stdout, stderr=sys.stdout)
+	pipe = sp.Popen(opts, stdin=sp.PIPE,stdout=devnul, stderr=devnul)
 
 	class ErrorLogger(threading.Thread):
 		def __init__(self):
@@ -475,10 +476,10 @@ def render_to_video(visualizerSet, mneplayer, postargs):
 
 	print("done")
 	print("closing pipe")
-	s.kill()
 	pipe.stdin.close()
 	pipe.stdout.close()
 	pipe.stderr.close()
+	s.kill()
 	pipe.terminate()
 
 

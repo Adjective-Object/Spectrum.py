@@ -65,7 +65,7 @@ class Player:
                 "-ar", "44100",
                 "-ac", "2",
                 "-"],
-                stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
+                stdin=sp.PIPE, stdout=sp.PIPE, stderr=sys.stderr)
         elif (self.extension == self.TYPE_WAV):
             self.wf = wave.open(self.filename, 'rb')
 
