@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "json/json.h"
-#include "song.cc"
+#include "song.h"
 using namespace std;
 
 int main (int argc, char *argv []) {

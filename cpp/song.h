@@ -1,6 +1,8 @@
 #ifndef SPECTRUM_SONG_INCLUDED
 #define SPECTRUM_SONG_INCLUDED
 
+#define SPECTRUM_FRAME_SIZE 4096
+
 class Player{
 
     //contents of the current frame (on the heap)
@@ -9,14 +11,15 @@ class Player{
     int _currentframe;
     int _totalframes;
 
+    FILE *stream;
+
 public:
-    void open(); //opens the ffmpeg subprocess
     void next_frame(); //steps to the next frame
 
-    int *get_data()     {return framedata};
+    int *get_data()     {return framedata;}
 
-    int currentframe()  {return _currentframe};
-    int totalframes()   {return _totalframes};
+    int currentframe()  {return _currentframe;}
+    int totalframes()   {return _totalframes;}
 };
 
 
@@ -35,7 +38,7 @@ class MetaDater{
     int _numtracks;
 
     char *_genre;
-    char *_originalartist
+    char *_originalartist;
 
 public:
     //song metadata
@@ -45,19 +48,17 @@ public:
     char *album_artist()    {return _album_artist;}
     char *composer()        {return _composer;}
 
-    int year()              {return _year};
-    int trackno()           {return _trackno};
+    int year()              {return _year;}
+    int trackno()           {return _trackno;}
     int numtracks()         {return _numtracks;}
 
-    char *genre()           {return _genre};
+    char *genre()           {return _genre;}
     char *originalartist()  {return _originalartist;}
 };
 
 typedef struct Song{
-    Player *player,
-    MetaDater *metadata
+    Player *player;
+    MetaDater *metadata;
 } Song;
-
-Song loadSong(char *filename);
 
 #endif
